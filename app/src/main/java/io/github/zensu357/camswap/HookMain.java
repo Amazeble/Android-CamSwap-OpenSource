@@ -182,12 +182,42 @@ public class HookMain {
         // Initialize Microphone Handler
         new MicrophoneHandler().init(packageContext);
 
+        // Initialize WebView Handler (for browsers like Firefox that use WebRTC getUserMedia)
+        // Only enable for browser packages to avoid unnecessary overhead
+        if (isBrowserPackage(packageName)) {
+            new WebViewHandler().init(packageContext);
+        }
+
         hookMediaRecorderSetCamera(classLoader, packageName, packageContext);
         hookCallApplicationOnCreate(classLoader, packageName);
         hookImageReaderNewInstance(classLoader);
         hookImageReaderAcquireMethods(classLoader);
         hookImageReaderListener(classLoader);
         hookCaptureFailed(classLoader);
+    }
+
+    /**
+     * Check if the package is a browser that uses WebRTC getUserMedia
+     */
+    private boolean isBrowserPackage(String packageName) {
+        if (packageName == null) return false;
+        // Mozilla Firefox (org.mozilla.fenix) and related browsers
+        if (packageName.startsWith("org.mozilla.")) return true;
+        // Chrome and Chromium-based browsers
+        if (packageName.startsWith("com.android.chrome") || 
+            packageName.startsWith("com.chrome.") ||
+            packageName.startsWith("org.chromium.")) return true;
+        // Samsung Internet
+        if (packageName.startsWith("com.sec.android.app.sbrowser")) return true;
+        // Opera
+        if (packageName.startsWith("com.opera.") || packageName.startsWith("com.operamini.")) return true;
+        // Edge
+        if (packageName.startsWith("com.microsoft.emmx") || packageName.startsWith("com.microsoft.mmx.")) return true;
+        // Brave
+        if (packageName.startsWith("com.brave.")) return true;
+        // DuckDuckGo
+        if (packageName.startsWith("com.duckduckgo.")) return true;
+        return false;
     }
 
     private void hookMediaRecorderSetCamera(ClassLoader classLoader, String packageName,
