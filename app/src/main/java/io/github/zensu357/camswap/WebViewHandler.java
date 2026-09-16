@@ -16,23 +16,23 @@ import io.github.zensu357.camswap.utils.VideoManager;
 
 /**
  * WebView/GeckoView Hook Handler - Spoofs WebRTC getUserMedia() permissions
- * 
+ *
  * This handler injects JavaScript into WebView/GeckoView instances to mock
- * navigator.mediaDevices.getUserMedia() API, making it always succeed with
- * a fake media stream. This is useful for browsers like Mozilla Firefox
+ * navigator.mediaDevices.getUserMedia() API, making it always succeed with a
+ * fake media stream. This is useful for browsers like Mozilla Firefox
  * (org.mozilla.fenix) that use WebRTC instead of native camera APIs.
- * 
+ *
  * Supports both:
  * - Standard Android WebView (android.webkit.WebView)
  * - GeckoView (org.mozilla.geckoview.GeckoView) used by Firefox
  */
 public class WebViewHandler implements ICameraHandler {
-    
+
     private static final String TAG = "【CS】[WebView]";
-    
+
     // JavaScript to spoof getUserMedia - injected into all web views
     // Modified to ALWAYS return fake stream immediately (no real camera attempt)
-    private static final String SPOOF_GET_USER_MEDIA_JS = 
+    private static final String SPOOF_GET_USER_MEDIA_JS =
         "(function() {" +
         "  console.log('[CamSwap] Script loaded - FORCE SPOOF MODE'); " +
         "  if (!window.navigator.mediaDevices) { window.navigator.mediaDevices = {}; }" +
@@ -89,20 +89,20 @@ public class WebViewHandler implements ICameraHandler {
     public void init(final Api101PackageContext packageContext) {
         final ClassLoader classLoader = packageContext.classLoader;
         final String packageName = packageContext.packageName;
-        
+
         LogUtil.log(TAG + " 初始化 WebView Hook for: " + packageName);
-        
+
         // Hook standard Android WebView
         hookWebViewLoadUrl(classLoader, packageName);
         hookWebViewAddJavascriptInterface(classLoader, packageName);
         hookWebChromeClientOnPermissionRequest(classLoader, packageName);
-        
+
         // Hook GeckoView (used by Firefox)
         hookGeckoView(classLoader, packageName);
-        
+
         LogUtil.log(TAG + " WebView Hook 初始化完成");
     }
-    
+
     /**
      * Hook WebView.loadUrl() to inject spoofing JavaScript after page load
      */
@@ -110,11 +110,11 @@ public class WebViewHandler implements ICameraHandler {
         try {
             Method loadUrlMethod = classLoader.loadClass("android.webkit.WebView")
                 .getDeclaredMethod("loadUrl", String.class);
-            
+
             Api101Runtime.requireModule().hook(loadUrlMethod).intercept(chain -> {
                 Object[] args = chain.getArgs().toArray(new Object[0]);
                 Object result = chain.proceed(args);
-                
+
                 try {
                     if (chain.getThisObject() instanceof WebView) {
                         WebView webView = (WebView) chain.getThisObject();
@@ -123,16 +123,16 @@ public class WebViewHandler implements ICameraHandler {
                 } catch (Throwable t) {
                     LogUtil.log(TAG + " loadUrl hook 异常：" + t);
                 }
-                
+
                 return result;
             });
-            
+
             LogUtil.log(TAG + " Hooked WebView.loadUrl()");
         } catch (Throwable t) {
             LogUtil.log(TAG + " Failed to hook WebView.loadUrl(): " + t);
         }
     }
-    
+
     /**
      * Hook WebView.evaluateJavascript() to ensure our script runs
      */
@@ -140,77 +140,96 @@ public class WebViewHandler implements ICameraHandler {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
             return;
         }
-        
+
         try {
             Method evalMethod = classLoader.loadClass("android.webkit.WebView")
-                .getDeclaredMethod("evaluateJavascript", String.class, 
-                    classLoader.loadClass("android.webkit.ValueCallback"));
-            
+                .getDeclaredMethod(
+                    "evaluateJavascript",
+                    String.class,
+                    classLoader.loadClass("android.webkit.ValueCallback")
+                );
+
             Api101Runtime.requireModule().hook(evalMethod).intercept(chain -> {
                 Object[] args = chain.getArgs().toArray(new Object[0]);
                 return chain.proceed(args);
             });
-            
+
             LogUtil.log(TAG + " Hooked WebView.evaluateJavascript()");
         } catch (Throwable t) {
             LogUtil.log(TAG + " Failed to hook WebView.evaluateJavascript(): " + t);
         }
     }
-    
+
     /**
      * Hook WebChromeClient.onPermissionRequest() to auto-grant camera/microphone permissions
      */
-    private void hookWebChromeClientOnPermissionRequest(ClassLoader classLoader, String packageName) {
+    private void hookWebChromeClientOnPermissionRequest(
+            ClassLoader classLoader,
+            String packageName) {
         try {
-            Class<?> webChromeClientClass = classLoader.loadClass("android.webkit.WebChromeClient");
-            Class<?> permissionRequestClass = classLoader.loadClass("android.webkit.PermissionRequest");
-            
+            Class<?> webChromeClientClass =
+                classLoader.loadClass("android.webkit.WebChromeClient");
+            Class<?> permissionRequestClass =
+                classLoader.loadClass("android.webkit.PermissionRequest");
+
             Method onPermissionRequestMethod = webChromeClientClass.getDeclaredMethod(
-                "onPermissionRequest", permissionRequestClass);
-            
+                "onPermissionRequest",
+                permissionRequestClass
+            );
+
             Api101Runtime.requireModule().hook(onPermissionRequestMethod).intercept(chain -> {
                 Object[] args = chain.getArgs().toArray(new Object[0]);
-                
+
                 try {
                     if (args[0] != null) {
                         PermissionRequest request = (PermissionRequest) args[0];
                         String[] resources = request.getResources();
-                        
-                        LogUtil.log(TAG + " PermissionRequest received: " + Arrays.toString(resources));
-                        
-                        // Check if requesting camera or microphone
+
+                        LogUtil.log(
+                            TAG + " PermissionRequest received: "
+                                + Arrays.toString(resources)
+                        );
+
                         boolean needsCamera = false;
                         boolean needsMic = false;
+
                         for (String resource : resources) {
                             if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
                                 needsCamera = true;
                             }
+
                             if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) {
                                 needsMic = true;
                             }
                         }
-                        
+
                         if (needsCamera || needsMic) {
-                            // Auto-grant permissions
-                            String[] grantedResources = resources; // Grant all requested
+                            String[] grantedResources = resources;
                             request.grant(grantedResources);
-                            LogUtil.log(TAG + " Auto-granted permissions: " + Arrays.toString(grantedResources));
-                            return null; // Don't call original method
+
+                            LogUtil.log(
+                                TAG + " Auto-granted permissions: "
+                                    + Arrays.toString(grantedResources)
+                            );
+
+                            return null;
                         }
                     }
                 } catch (Throwable t) {
                     LogUtil.log(TAG + " onPermissionRequest hook 异常：" + t);
                 }
-                
+
                 return chain.proceed(args);
             });
-            
+
             LogUtil.log(TAG + " Hooked WebChromeClient.onPermissionRequest()");
         } catch (Throwable t) {
-            LogUtil.log(TAG + " Failed to hook WebChromeClient.onPermissionRequest(): " + t);
+            LogUtil.log(
+                TAG + " Failed to hook WebChromeClient.onPermissionRequest(): " + t
+            );
         }
     }
-    
+
     /**
      * Inject JavaScript into WebView to spoof getUserMedia
      */
@@ -218,10 +237,10 @@ public class WebViewHandler implements ICameraHandler {
         if (webView == null) {
             return;
         }
-        
-        // Enable JavaScript
+
         try {
             android.webkit.WebSettings settings = webView.getSettings();
+
             if (settings != null) {
                 settings.setJavaScriptEnabled(true);
                 settings.setDomStorageEnabled(true);
@@ -229,51 +248,63 @@ public class WebViewHandler implements ICameraHandler {
         } catch (Exception e) {
             LogUtil.log(TAG + " Failed to enable JavaScript: " + e);
         }
-        
-        // Set a custom WebChromeClient to handle permission requests
+
         try {
             webView.setWebChromeClient(new WebChromeClient() {
                 @Override
                 public void onPermissionRequest(PermissionRequest request) {
                     String[] resources = request.getResources();
-                    LogUtil.log(TAG + " Custom WebChromeClient got PermissionRequest: " + 
-                        Arrays.toString(resources));
-                    
-                    // Auto-grant all requested resources
+
+                    LogUtil.log(
+                        TAG + " Custom WebChromeClient got PermissionRequest: "
+                            + Arrays.toString(resources)
+                    );
+
                     request.grant(resources);
                 }
             });
         } catch (Exception e) {
             LogUtil.log(TAG + " Failed to set WebChromeClient: " + e);
         }
-        
-        // Inject the spoofing JavaScript
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             try {
                 webView.evaluateJavascript(SPOOF_GET_USER_MEDIA_JS, null);
-                LogUtil.log(TAG + " Injected getUserMedia spoof script into: " + packageName);
+
+                LogUtil.log(
+                    TAG + " Injected getUserMedia spoof script into: " + packageName
+                );
             } catch (Exception e) {
                 LogUtil.log(TAG + " Failed to evaluateJavascript: " + e);
             }
         } else {
-            // For older versions, use loadUrl with javascript: protocol
             try {
                 webView.loadUrl("javascript:" + SPOOF_GET_USER_MEDIA_JS);
-                LogUtil.log(TAG + " Injected getUserMedia spoof script (legacy) into: " + packageName);
+
+                LogUtil.log(
+                    TAG + " Injected getUserMedia spoof script (legacy) into: "
+                        + packageName
+                );
             } catch (Exception e) {
                 LogUtil.log(TAG + " Failed to loadUrl javascript: " + e);
             }
         }
     }
-    
+
     /**
      * Hook WebView.addJavascriptInterface() - not used but logged
      */
-    private void hookWebViewAddJavascriptInterface(ClassLoader classLoader, String packageName) {
+    private void hookWebViewAddJavascriptInterface(
+            ClassLoader classLoader,
+            String packageName) {
         try {
             Method method = classLoader.loadClass("android.webkit.WebView")
-                .getDeclaredMethod("addJavascriptInterface", Object.class, String.class);
-            
+                .getDeclaredMethod(
+                    "addJavascriptInterface",
+                    Object.class,
+                    String.class
+                );
+
             Api101Runtime.requireModule().hook(method).intercept(chain -> {
                 Object[] args = chain.getArgs().toArray(new Object[0]);
                 LogUtil.log(TAG + " addJavascriptInterface called: " + args[1]);
@@ -283,132 +314,182 @@ public class WebViewHandler implements ICameraHandler {
             // Ignore - not critical
         }
     }
-    
+
     /**
      * Hook GeckoView (used by Firefox) to inject JavaScript for getUserMedia spoofing
      */
     private void hookGeckoView(ClassLoader classLoader, String packageName) {
         try {
-            // Try to load GeckoView classes
             Class<?> geckoViewClass = null;
             Class<?> geckoSessionClass = null;
-            
+
             try {
-                geckoViewClass = classLoader.loadClass("org.mozilla.geckoview.GeckoView");
-                geckoSessionClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession");
+                geckoViewClass =
+                    classLoader.loadClass("org.mozilla.geckoview.GeckoView");
+                geckoSessionClass =
+                    classLoader.loadClass("org.mozilla.geckoview.GeckoSession");
             } catch (ClassNotFoundException e) {
-                LogUtil.log(TAG + " GeckoView not found in this app, skipping GeckoView hooks");
+                LogUtil.log(
+                    TAG + " GeckoView not found in this app, skipping GeckoView hooks"
+                );
                 return;
             }
-            
-            LogUtil.log(TAG + " Found GeckoView classes, setting up hooks for: " + packageName);
-            
-            // Hook GeckoSession.setContentDelegate to inject JS when page loads
+
+            LogUtil.log(
+                TAG + " Found GeckoView classes, setting up hooks for: "
+                    + packageName
+            );
+
             try {
-                Class<?> contentDelegateClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession$ContentDelegate");
-                
-                // We'll inject JS via ProgressDelegate which is called on page load
-                Class<?> progressDelegateClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession$ProgressDelegate");
-                
-                // Hook GeckoSession.setProgressDelegate
-                Method setProgressDelegateMethod = geckoSessionClass.getDeclaredMethod(
-                    "setProgressDelegate", progressDelegateClass);
-                
-                Api101Runtime.requireModule().hook(setProgressDelegateMethod).intercept(chain -> {
-                    Object[] args = toArgs(chain.getArgs());
-                    
-                    // Wrap or replace the progress delegate to inject our JS
-                    if (args[0] != null) {
-                        Object originalDelegate = args[0];
-                        args[0] = createGeckoProgressDelegateWrapper(
-                            classLoader, originalDelegate, packageName);
-                    }
-                    
-                    return chain.proceed(args);
-                });
-                
+                Class<?> contentDelegateClass =
+                    classLoader.loadClass(
+                        "org.mozilla.geckoview.GeckoSession$ContentDelegate"
+                    );
+
+                Class<?> progressDelegateClass =
+                    classLoader.loadClass(
+                        "org.mozilla.geckoview.GeckoSession$ProgressDelegate"
+                    );
+
+                Method setProgressDelegateMethod =
+                    geckoSessionClass.getDeclaredMethod(
+                        "setProgressDelegate",
+                        progressDelegateClass
+                    );
+
+                Api101Runtime.requireModule()
+                    .hook(setProgressDelegateMethod)
+                    .intercept(chain -> {
+                        Object[] args =
+                            chain.getArgs().toArray(new Object[0]);
+
+                        if (args.length > 0 && args[0] != null) {
+                            Object originalDelegate = args[0];
+
+                            args[0] = createGeckoProgressDelegateWrapper(
+                                classLoader,
+                                originalDelegate,
+                                packageName
+                            );
+                        }
+
+                        return chain.proceed(args);
+                    });
+
                 LogUtil.log(TAG + " Hooked GeckoSession.setProgressDelegate()");
             } catch (Exception e) {
-                LogUtil.log(TAG + " Failed to hook GeckoSession.setProgressDelegate: " + e);
+                LogUtil.log(
+                    TAG + " Failed to hook GeckoSession.setProgressDelegate: " + e
+                );
             }
-            
-            // Also try to hook onPageStart directly if possible
+
             try {
-                Class<?> progressDelegateClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession$ProgressDelegate");
-                
-                // Find onPageStart method
+                Class<?> progressDelegateClass =
+                    classLoader.loadClass(
+                        "org.mozilla.geckoview.GeckoSession$ProgressDelegate"
+                    );
+
                 Method onPageStartMethod = null;
-                for (Method m : progressDelegateClass.getDeclaredMethods()) {
-                    if ("onPageStart".equals(m.getName())) {
-                        onPageStartMethod = m;
+
+                for (Method method : progressDelegateClass.getDeclaredMethods()) {
+                    if ("onPageStart".equals(method.getName())) {
+                        onPageStartMethod = method;
                         break;
                     }
                 }
-                
+
                 if (onPageStartMethod != null) {
-                    Api101Runtime.requireModule().hook(onPageStartMethod).intercept(chain -> {
-                        Object[] args = toArgs(chain.getArgs());
-                        
-                        // Call original first
-                        Object result = chain.proceed(args);
-                        
-                        // Then inject our JS
-                        try {
-                            GeckoSessionHelper.injectJavaScript(args[0], SPOOF_GET_USER_MEDIA_JS);
-                            LogUtil.log(TAG + " Injected getUserMedia spoof into GeckoView");
-                        } catch (Exception e) {
-                            LogUtil.log(TAG + " Failed to inject JS into GeckoView: " + e);
-                        }
-                        
-                        return result;
-                    });
-                    
-                    LogUtil.log(TAG + " Hooked GeckoSession.ProgressDelegate.onPageStart()");
+                    Api101Runtime.requireModule()
+                        .hook(onPageStartMethod)
+                        .intercept(chain -> {
+                            Object[] args =
+                                chain.getArgs().toArray(new Object[0]);
+
+                            Object result = chain.proceed(args);
+
+                            try {
+                                if (args.length > 0) {
+                                    GeckoSessionHelper.injectJavaScript(
+                                        args[0],
+                                        SPOOF_GET_USER_MEDIA_JS
+                                    );
+
+                                    LogUtil.log(
+                                        TAG
+                                            + " Injected getUserMedia spoof into GeckoView"
+                                    );
+                                }
+                            } catch (Exception e) {
+                                LogUtil.log(
+                                    TAG
+                                        + " Failed to inject JS into GeckoView: "
+                                        + e
+                                );
+                            }
+
+                            return result;
+                        });
+
+                    LogUtil.log(
+                        TAG
+                            + " Hooked GeckoSession.ProgressDelegate.onPageStart()"
+                    );
                 }
             } catch (Exception e) {
-                LogUtil.log(TAG + " Failed to hook onPageStart: " + e);
+                LogUtil.log(
+                    TAG + " Failed to hook onPageStart: " + e
+                );
             }
-            
         } catch (Throwable t) {
-            LogUtil.log(TAG + " Failed to setup GeckoView hooks: " + t);
+            LogUtil.log(
+                TAG + " Failed to setup GeckoView hooks: " + t
+            );
         }
     }
-    
+
     /**
      * Helper class for GeckoView JavaScript injection
      */
     private static class GeckoSessionHelper {
+
         static void injectJavaScript(Object geckoSession, String js) {
-            if (geckoSession == null) return;
-            
+            if (geckoSession == null) {
+                return;
+            }
+
             try {
-                // Use evaluateJS method if available (GeckoView 89+)
                 Class<?> sessionClass = geckoSession.getClass();
+
                 try {
-                    Method evalMethod = sessionClass.getMethod("evaluateJS", String.class);
+                    Method evalMethod =
+                        sessionClass.getMethod("evaluateJS", String.class);
+
                     evalMethod.invoke(geckoSession, js);
                     return;
                 } catch (NoSuchMethodException e) {
                     // Try older API
                 }
-                
-                // For older GeckoView versions, we may need to use a different approach
-                // This is a fallback - in practice, most modern Firefox versions support evaluateJS
-                LogUtil.log(TAG + " GeckoView evaluateJS method not found");
+
+                LogUtil.log(
+                    TAG + " GeckoView evaluateJS method not found"
+                );
             } catch (Exception e) {
-                LogUtil.log(TAG + " Failed to inject JS into GeckoSession: " + e);
+                LogUtil.log(
+                    TAG + " Failed to inject JS into GeckoSession: " + e
+                );
             }
         }
     }
-    
+
     /**
      * Create a wrapper for GeckoView ProgressDelegate to inject JavaScript on page load
      */
-    private Object createGeckoProgressDelegateWrapper(ClassLoader classLoader, 
-                                                       Object originalDelegate, 
-                                                       String packageName) {
-        // For simplicity, we'll just return the original delegate
-        // The actual injection happens in the hooked onPageStart method above
+    private Object createGeckoProgressDelegateWrapper(
+            ClassLoader classLoader,
+            Object originalDelegate,
+            String packageName) {
+        // For simplicity, we'll just return the original delegate.
+        // The actual injection happens in the hooked onPageStart method above.
         return originalDelegate;
     }
 }
