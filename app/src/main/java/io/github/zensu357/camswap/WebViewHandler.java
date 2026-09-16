@@ -31,9 +31,10 @@ public class WebViewHandler implements ICameraHandler {
     private static final String TAG = "【CS】[WebView]";
     
     // JavaScript to spoof getUserMedia - injected into all web views
+    // Modified to ALWAYS return fake stream immediately (no real camera attempt)
     private static final String SPOOF_GET_USER_MEDIA_JS = 
         "(function() {" +
-        "  console.log('[CamSwap] Script loaded');" +
+        "  console.log('[CamSwap] Script loaded - FORCE SPOOF MODE'); " +
         "  if (!window.navigator.mediaDevices) { window.navigator.mediaDevices = {}; }" +
         "  function createFakeStream(hasVideo, hasAudio) {" +
         "    var fakeStream = new MediaStream();" +
@@ -49,6 +50,7 @@ public class WebViewHandler implements ICameraHandler {
         "        var stream = canvas.mozCaptureStream ? canvas.mozCaptureStream(30) : canvas.captureStream(30);" +
         "        var videoTrack = stream.getVideoTracks()[0];" +
         "        if (videoTrack) fakeStream.addTrack(videoTrack);" +
+        "        console.log('[CamSwap] Fake video track created successfully');" +
         "      } catch (e) { console.error('[CamSwap] Video error:', e); }" +
         "    }" +
         "    if (hasAudio) {" +
@@ -60,33 +62,27 @@ public class WebViewHandler implements ICameraHandler {
         "          var dest = ac.createMediaStreamDestination(); gain.connect(dest);" +
         "          var audioTrack = dest.stream.getAudioTracks()[0];" +
         "          if (audioTrack) fakeStream.addTrack(audioTrack);" +
+        "          console.log('[CamSwap] Fake audio track created successfully');" +
         "        }" +
         "      } catch (e) { console.error('[CamSwap] Audio error:', e); }" +
         "    }" +
         "    return fakeStream;" +
         "  }" +
-        "  if (window.navigator.mediaDevices.getUserMedia) {" +
-        "    var originalGM = window.navigator.mediaDevices.getUserMedia;" +
-        "    window.navigator.mediaDevices.getUserMedia = function(constraints) {" +
-        "      console.log('[CamSwap] Intercepted getUserMedia'); " +
-        "      return new Promise(function(resolve, reject) {" +
-        "        originalGM.call(window.navigator.mediaDevices, constraints)" +
-        "          .then(function(stream) { console.log('[CamSwap] Real camera OK'); resolve(stream); })" +
-        "          .catch(function(err) {" +
-        "            console.warn('[CamSwap] Real camera FAILED:', err.message);" +
-        "            console.log('[CamSwap] Returning FAKE stream instead of error!');" +
-        "            try { resolve(createFakeStream(constraints && constraints.video, constraints && constraints.audio)); }" +
-        "            catch (e) { resolve(new MediaStream()); }" +
-        "          });" +
-        "      });" +
-        "    };" +
-        "    console.log('[CamSwap] Override installed');" +
-        "  } else {" +
-        "    window.navigator.mediaDevices.getUserMedia = function(c) {" +
-        "      return Promise.resolve(createFakeStream(c && c.video, c && c.audio));" +
-        "    };" +
-        "  }" +
-        "  console.log('[CamSwap] COMPLETE - errors will be spoofed');" +
+        "  // OVERRIDE: Always return fake stream immediately - never attempt real camera" +
+        "  window.navigator.mediaDevices.getUserMedia = function(constraints) {" +
+        "    console.log('[CamSwap] getUserMedia called - returning FAKE stream (NO real camera attempt)'); " +
+        "    console.log('[CamSwap] Constraints:', JSON.stringify(constraints));" +
+        "    return Promise.resolve(createFakeStream(constraints && constraints.video, constraints && constraints.audio));" +
+        "  };" +
+        "  // Also override enumerateDevices to show fake devices" +
+        "  window.navigator.mediaDevices.enumerateDevices = function() {" +
+        "    console.log('[CamSwap] enumerateDevices called - returning fake device list');" +
+        "    return Promise.resolve([" +
+        "      {kind: 'videoinput', deviceId: 'fake_video_1', label: 'CamSwap Virtual Camera', groupId: ''}," +
+        "      {kind: 'audioinput', deviceId: 'fake_audio_1', label: 'CamSwap Virtual Microphone', groupId: ''}" +
+        "    ]);" +
+        "  };" +
+        "  console.log('[CamSwap] COMPLETE - All media device calls will be spoofed with success');" +
         "})();";
 
     @Override
