@@ -1,6 +1,25 @@
 ```
 # Logs and temp files
 *.log
+# Build artifacts
+dist/
+build/
+target/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.eggs/
+.egg-info/
+*.egg-info/
+# Logs and temp files
+*.log
 *.tmp
 
 # Environment variables
