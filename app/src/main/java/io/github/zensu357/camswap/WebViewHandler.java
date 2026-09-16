@@ -21,12 +21,16 @@ import io.github.zensu357.camswap.utils.VideoManager;
  * navigator.mediaDevices.getUserMedia() API, making it always succeed with
  * a fake media stream. This is useful for browsers like Mozilla Firefox
  * (org.mozilla.fenix) that use WebRTC instead of native camera APIs.
+ * 
+ * Supports both:
+ * - Standard Android WebView (android.webkit.WebView)
+ * - GeckoView (org.mozilla.geckoview.GeckoView) used by Firefox
  */
 public class WebViewHandler implements ICameraHandler {
     
     private static final String TAG = "【CS】[WebView]";
     
-    // JavaScript to spoof getUserMedia
+    // JavaScript to spoof getUserMedia - injected into all web views
     private static final String SPOOF_GET_USER_MEDIA_JS = 
         "(function() {" +
         "  if (window.navigator.mediaDevices && window.navigator.mediaDevices.getUserMedia) {" +
@@ -89,12 +93,13 @@ public class WebViewHandler implements ICameraHandler {
         
         LogUtil.log(TAG + " 初始化 WebView Hook for: " + packageName);
         
-        // Hook WebView loading to inject JavaScript
+        // Hook standard Android WebView
         hookWebViewLoadUrl(classLoader, packageName);
         hookWebViewAddJavascriptInterface(classLoader, packageName);
-        
-        // Hook WebChromeClient permission requests
         hookWebChromeClientOnPermissionRequest(classLoader, packageName);
+        
+        // Hook GeckoView (used by Firefox)
+        hookGeckoView(classLoader, packageName);
         
         LogUtil.log(TAG + " WebView Hook 初始化完成");
     }
@@ -278,5 +283,133 @@ public class WebViewHandler implements ICameraHandler {
         } catch (Throwable t) {
             // Ignore - not critical
         }
+    }
+    
+    /**
+     * Hook GeckoView (used by Firefox) to inject JavaScript for getUserMedia spoofing
+     */
+    private void hookGeckoView(ClassLoader classLoader, String packageName) {
+        try {
+            // Try to load GeckoView classes
+            Class<?> geckoViewClass = null;
+            Class<?> geckoSessionClass = null;
+            
+            try {
+                geckoViewClass = classLoader.loadClass("org.mozilla.geckoview.GeckoView");
+                geckoSessionClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession");
+            } catch (ClassNotFoundException e) {
+                LogUtil.log(TAG + " GeckoView not found in this app, skipping GeckoView hooks");
+                return;
+            }
+            
+            LogUtil.log(TAG + " Found GeckoView classes, setting up hooks for: " + packageName);
+            
+            // Hook GeckoSession.setContentDelegate to inject JS when page loads
+            try {
+                Class<?> contentDelegateClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession$ContentDelegate");
+                
+                // We'll inject JS via ProgressDelegate which is called on page load
+                Class<?> progressDelegateClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession$ProgressDelegate");
+                
+                // Hook GeckoSession.setProgressDelegate
+                Method setProgressDelegateMethod = geckoSessionClass.getDeclaredMethod(
+                    "setProgressDelegate", progressDelegateClass);
+                
+                Api101Runtime.requireModule().hook(setProgressDelegateMethod).intercept(chain -> {
+                    Object[] args = toArgs(chain.getArgs());
+                    
+                    // Wrap or replace the progress delegate to inject our JS
+                    if (args[0] != null) {
+                        Object originalDelegate = args[0];
+                        args[0] = createGeckoProgressDelegateWrapper(
+                            classLoader, originalDelegate, packageName);
+                    }
+                    
+                    return chain.proceed(args);
+                });
+                
+                LogUtil.log(TAG + " Hooked GeckoSession.setProgressDelegate()");
+            } catch (Exception e) {
+                LogUtil.log(TAG + " Failed to hook GeckoSession.setProgressDelegate: " + e);
+            }
+            
+            // Also try to hook onPageStart directly if possible
+            try {
+                Class<?> progressDelegateClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession$ProgressDelegate");
+                
+                // Find onPageStart method
+                Method onPageStartMethod = null;
+                for (Method m : progressDelegateClass.getDeclaredMethods()) {
+                    if ("onPageStart".equals(m.getName())) {
+                        onPageStartMethod = m;
+                        break;
+                    }
+                }
+                
+                if (onPageStartMethod != null) {
+                    Api101Runtime.requireModule().hook(onPageStartMethod).intercept(chain -> {
+                        Object[] args = toArgs(chain.getArgs());
+                        
+                        // Call original first
+                        Object result = chain.proceed(args);
+                        
+                        // Then inject our JS
+                        try {
+                            GeckoSessionHelper.injectJavaScript(args[0], SPOOF_GET_USER_MEDIA_JS);
+                            LogUtil.log(TAG + " Injected getUserMedia spoof into GeckoView");
+                        } catch (Exception e) {
+                            LogUtil.log(TAG + " Failed to inject JS into GeckoView: " + e);
+                        }
+                        
+                        return result;
+                    });
+                    
+                    LogUtil.log(TAG + " Hooked GeckoSession.ProgressDelegate.onPageStart()");
+                }
+            } catch (Exception e) {
+                LogUtil.log(TAG + " Failed to hook onPageStart: " + e);
+            }
+            
+        } catch (Throwable t) {
+            LogUtil.log(TAG + " Failed to setup GeckoView hooks: " + t);
+        }
+    }
+    
+    /**
+     * Helper class for GeckoView JavaScript injection
+     */
+    private static class GeckoSessionHelper {
+        static void injectJavaScript(Object geckoSession, String js) {
+            if (geckoSession == null) return;
+            
+            try {
+                // Use evaluateJS method if available (GeckoView 89+)
+                Class<?> sessionClass = geckoSession.getClass();
+                try {
+                    Method evalMethod = sessionClass.getMethod("evaluateJS", String.class);
+                    evalMethod.invoke(geckoSession, js);
+                    return;
+                } catch (NoSuchMethodException e) {
+                    // Try older API
+                }
+                
+                // For older GeckoView versions, we may need to use a different approach
+                // This is a fallback - in practice, most modern Firefox versions support evaluateJS
+                LogUtil.log(TAG + " GeckoView evaluateJS method not found");
+            } catch (Exception e) {
+                LogUtil.log(TAG + " Failed to inject JS into GeckoSession: " + e);
+            }
+        }
+    }
+    
+    /**
+     * Create a wrapper for GeckoView ProgressDelegate to inject JavaScript on page load
+     */
+    private Object createGeckoProgressDelegateWrapper(ClassLoader classLoader, 
+                                                       Object originalDelegate, 
+                                                       String packageName) {
+        // For simplicity, we'll just return the original delegate
+        // The actual injection happens in the hooked onPageStart method above
+        return originalDelegate;
     }
 }
