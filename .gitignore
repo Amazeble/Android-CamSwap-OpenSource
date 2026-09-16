@@ -1,42 +1,28 @@
 ```
-# Environment
-.env
-.env.local
-*.env.*
-
 # Logs and temp files
 *.log
 *.tmp
+*.swp
+
+# Environment
+.env
+.env.local
+.env.*
 
 # Editors
 .vscode/
 .idea/
 
-# Python
+# Dependencies
+node_modules/
+.venv/
+venv/
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-.coverage
-coverage/
-htmlcov/
-.pytest_cache/
 .mypy_cache/
+.pytest_cache/
 
-# Distribution / packaging
-.Python
-*.so
-.Python
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg-info/
-.eggs/
+# Build artifacts
 dist/
 build/
-*.egg
+target/
 ```
