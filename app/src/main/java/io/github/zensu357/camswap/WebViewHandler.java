@@ -33,58 +33,61 @@ public class WebViewHandler implements ICameraHandler {
     // JavaScript to spoof getUserMedia - injected into all web views
     private static final String SPOOF_GET_USER_MEDIA_JS = 
         "(function() {" +
-        "  if (window.navigator.mediaDevices && window.navigator.mediaDevices.getUserMedia) {" +
-        "    const originalGetUserMedia = window.navigator.mediaDevices.getUserMedia;" +
+        "  console.log('[CamSwap] Script loaded');" +
+        "  if (!window.navigator.mediaDevices) { window.navigator.mediaDevices = {}; }" +
+        "  function createFakeStream(hasVideo, hasAudio) {" +
+        "    var fakeStream = new MediaStream();" +
+        "    if (hasVideo) {" +
+        "      try {" +
+        "        var canvas = document.createElement('canvas');" +
+        "        canvas.width = 640; canvas.height = 480;" +
+        "        var ctx = canvas.getContext('2d');" +
+        "        ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, 640, 480);" +
+        "        ctx.fillStyle = '#00ff00'; ctx.font = 'bold 24px Arial';" +
+        "        ctx.fillText('CAMERA SPOOFED', 220, 220);" +
+        "        ctx.fillText('CamSwap Active', 230, 250);" +
+        "        var stream = canvas.mozCaptureStream ? canvas.mozCaptureStream(30) : canvas.captureStream(30);" +
+        "        var videoTrack = stream.getVideoTracks()[0];" +
+        "        if (videoTrack) fakeStream.addTrack(videoTrack);" +
+        "      } catch (e) { console.error('[CamSwap] Video error:', e); }" +
+        "    }" +
+        "    if (hasAudio) {" +
+        "      try {" +
+        "        var AudioCtx = window.AudioContext || window.webkitAudioContext || window.mozAudioContext;" +
+        "        if (AudioCtx) {" +
+        "          var ac = new AudioCtx(); var osc = ac.createOscillator(); var gain = ac.createGain();" +
+        "          gain.gain.value = 0.0001; osc.connect(gain); gain.connect(ac.destination); osc.start();" +
+        "          var dest = ac.createMediaStreamDestination(); gain.connect(dest);" +
+        "          var audioTrack = dest.stream.getAudioTracks()[0];" +
+        "          if (audioTrack) fakeStream.addTrack(audioTrack);" +
+        "        }" +
+        "      } catch (e) { console.error('[CamSwap] Audio error:', e); }" +
+        "    }" +
+        "    return fakeStream;" +
+        "  }" +
+        "  if (window.navigator.mediaDevices.getUserMedia) {" +
+        "    var originalGM = window.navigator.mediaDevices.getUserMedia;" +
         "    window.navigator.mediaDevices.getUserMedia = function(constraints) {" +
-        "      console.log('[CamSwap] getUserMedia called with:', JSON.stringify(constraints));" +
-        "      // Create a fake success response" +
+        "      console.log('[CamSwap] Intercepted getUserMedia'); " +
         "      return new Promise(function(resolve, reject) {" +
-        "        console.log('[CamSwap] Spoofing getUserMedia success...');" +
-        "        // Try to get the real stream first, if fails, create fake" +
-        "        originalGetUserMedia.call(window.navigator.mediaDevices, constraints)" +
-        "          .then(function(stream) {" +
-        "            console.log('[CamSwap] Real stream obtained'); " +
-        "            resolve(stream);" +
-        "          })" +
+        "        originalGM.call(window.navigator.mediaDevices, constraints)" +
+        "          .then(function(stream) { console.log('[CamSwap] Real camera OK'); resolve(stream); })" +
         "          .catch(function(err) {" +
-        "            console.log('[CamSwap] Creating fake stream due to:', err);" +
-        "            // Create fake MediaStream with fake tracks" +
-        "            var fakeStream = new MediaStream();" +
-        "            var hasVideo = constraints && constraints.video;" +
-        "            var hasAudio = constraints && constraints.audio;" +
-        "            if (hasVideo) {" +
-        "              var canvas = document.createElement('canvas');" +
-        "              canvas.width = 640; canvas.height = 480;" +
-        "              var ctx = canvas.getContext('2d');" +
-        "              ctx.fillStyle = '#000000';" +
-        "              ctx.fillRect(0, 0, canvas.width, canvas.height);" +
-        "              ctx.fillStyle = '#00FF00';" +
-        "              ctx.font = '20px Arial';" +
-        "              ctx.fillText('CamSwap Fake Video', 180, 240);" +
-        "              var stream = canvas.captureStream(30);" +
-        "              var videoTrack = stream.getVideoTracks()[0];" +
-        "              if (videoTrack) fakeStream.addTrack(videoTrack);" +
-        "            }" +
-        "            if (hasAudio) {" +
-        "              var audioContext = new (window.AudioContext || window.webkitAudioContext)();" +
-        "              var oscillator = audioContext.createOscillator();" +
-        "              var gainNode = audioContext.createGain();" +
-        "              gainNode.gain.value = 0;" +
-        "              oscillator.connect(gainNode);" +
-        "              gainNode.connect(audioContext.destination);" +
-        "              oscillator.start();" +
-        "              var dest = audioContext.createMediaStreamDestination();" +
-        "              gainNode.connect(dest);" +
-        "              var audioTrack = dest.stream.getAudioTracks()[0];" +
-        "              if (audioTrack) fakeStream.addTrack(audioTrack);" +
-        "            }" +
-        "            resolve(fakeStream);" +
+        "            console.warn('[CamSwap] Real camera FAILED:', err.message);" +
+        "            console.log('[CamSwap] Returning FAKE stream instead of error!');" +
+        "            try { resolve(createFakeStream(constraints && constraints.video, constraints && constraints.audio)); }" +
+        "            catch (e) { resolve(new MediaStream()); }" +
         "          });" +
         "      });" +
         "    };" +
-        "    console.log('[CamSwap] getUserMedia spoofed successfully');" +
+        "    console.log('[CamSwap] Override installed');" +
+        "  } else {" +
+        "    window.navigator.mediaDevices.getUserMedia = function(c) {" +
+        "      return Promise.resolve(createFakeStream(c && c.video, c && c.audio));" +
+        "    };" +
         "  }" +
-        "})();" ;
+        "  console.log('[CamSwap] COMPLETE - errors will be spoofed');" +
+        "})();";
 
     @Override
     public void init(final Api101PackageContext packageContext) {
