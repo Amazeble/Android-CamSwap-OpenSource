@@ -116,7 +116,7 @@ public class WebViewHandler implements ICameraHandler {
                 .getDeclaredMethod("loadUrl", String.class);
             
             Api101Runtime.requireModule().hook(loadUrlMethod).intercept(chain -> {
-                Object[] args = toArgs(chain.getArgs());
+                Object[] args = chain.getArgs().toArray(new Object[0]);
                 Object result = chain.proceed(args);
                 
                 try {
@@ -151,7 +151,7 @@ public class WebViewHandler implements ICameraHandler {
                     classLoader.loadClass("android.webkit.ValueCallback"));
             
             Api101Runtime.requireModule().hook(evalMethod).intercept(chain -> {
-                Object[] args = toArgs(chain.getArgs());
+                Object[] args = chain.getArgs().toArray(new Object[0]);
                 return chain.proceed(args);
             });
             
@@ -173,7 +173,7 @@ public class WebViewHandler implements ICameraHandler {
                 "onPermissionRequest", permissionRequestClass);
             
             Api101Runtime.requireModule().hook(onPermissionRequestMethod).intercept(chain -> {
-                Object[] args = toArgs(chain.getArgs());
+                Object[] args = chain.getArgs().toArray(new Object[0]);
                 
                 try {
                     if (args[0] != null) {
@@ -279,7 +279,7 @@ public class WebViewHandler implements ICameraHandler {
                 .getDeclaredMethod("addJavascriptInterface", Object.class, String.class);
             
             Api101Runtime.requireModule().hook(method).intercept(chain -> {
-                Object[] args = toArgs(chain.getArgs());
+                Object[] args = chain.getArgs().toArray(new Object[0]);
                 LogUtil.log(TAG + " addJavascriptInterface called: " + args[1]);
                 return chain.proceed(args);
             });
