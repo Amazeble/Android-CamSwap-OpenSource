@@ -54,4 +54,37 @@ jobs:
           REPO: ${{ github.repository }}
         shell: bash
         run: |
-          python3 -c "import os,requests;bot=os.environ['BOT_TOKEN'];cid=os.environ['CHAT_ID'];n=os.environ['RELEASE_NAME'];t=os.environ['RELEASE_TAG'];b=os.environ['RELEASE_BODY'];u=os.environ['RELEASE_URL'];r=os.environ['REPO'];m=f'New Push - {r}\\nRelease: {n} ({t})\\n\\n{b}\\n\\n{u}';requests.post(f'https://api.telegram.org/bot{bot}/sendMessage',data={'chat_id':cid,'text':m,'parse_mode':'HTML'}).raise_for_status();print('OK')"
+          python3 << 'EOF'
+          import os
+          import requests
+
+          bot = os.environ.get('BOT_TOKEN')
+          cid = os.environ.get('CHAT_ID')
+          name = os.environ.get('RELEASE_NAME', 'Unknown')
+          tag = os.environ.get('RELEASE_TAG', 'Unknown')
+          body = os.environ.get('RELEASE_BODY', '')
+          url = os.environ.get('RELEASE_URL', '')
+          repo = os.environ.get('REPO', 'Unknown')
+
+          if not bot or not cid:
+              print("Missing BOT_TOKEN or CHAT_ID")
+              exit(0)
+
+          message = f"""New Release - {repo}
+Release: {name} ({tag})
+
+{body}
+
+{url}"""
+
+          try:
+              response = requests.post(
+                  f'https://api.telegram.org/bot{bot}/sendMessage',
+                  data={'chat_id': cid, 'text': message, 'parse_mode': 'HTML'},
+                  timeout=10
+              )
+              response.raise_for_status()
+              print('Telegram notification sent successfully')
+          except Exception as e:
+              print(f'Failed to send Telegram notification: {e}')
+          EOF
