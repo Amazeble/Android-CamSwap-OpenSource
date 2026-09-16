@@ -41,3 +41,17 @@ jobs:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
+
+      - name: Send release to Telegram
+        if: github.event_name == 'release'
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: "@CamSwap"
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          python3 -c "import os,requests;bot=os.environ['BOT_TOKEN'];cid=os.environ['CHAT_ID'];n=os.environ['RELEASE_NAME'];t=os.environ['RELEASE_TAG'];b=os.environ['RELEASE_BODY'];u=os.environ['RELEASE_URL'];r=os.environ['REPO'];m=f'New Push - {r}\\nRelease: {n} ({t})\\n\\n{b}\\n\\n{u}';requests.post(f'https://api.telegram.org/bot{bot}/sendMessage',data={'chat_id':cid,'text':m,'parse_mode':'HTML'}).raise_for_status();print('OK')"

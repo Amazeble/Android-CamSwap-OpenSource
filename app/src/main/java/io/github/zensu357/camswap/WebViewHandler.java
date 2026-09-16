@@ -21,66 +21,73 @@ import io.github.zensu357.camswap.utils.VideoManager;
  * navigator.mediaDevices.getUserMedia() API, making it always succeed with
  * a fake media stream. This is useful for browsers like Mozilla Firefox
  * (org.mozilla.fenix) that use WebRTC instead of native camera APIs.
+ * 
+ * Supports both:
+ * - Standard Android WebView (android.webkit.WebView)
+ * - GeckoView (org.mozilla.geckoview.GeckoView) used by Firefox
  */
 public class WebViewHandler implements ICameraHandler {
     
     private static final String TAG = "【CS】[WebView]";
     
-    // JavaScript to spoof getUserMedia
+    // JavaScript to spoof getUserMedia - injected into all web views
     private static final String SPOOF_GET_USER_MEDIA_JS = 
         "(function() {" +
-        "  if (window.navigator.mediaDevices && window.navigator.mediaDevices.getUserMedia) {" +
-        "    const originalGetUserMedia = window.navigator.mediaDevices.getUserMedia;" +
+        "  console.log('[CamSwap] Script loaded');" +
+        "  if (!window.navigator.mediaDevices) { window.navigator.mediaDevices = {}; }" +
+        "  function createFakeStream(hasVideo, hasAudio) {" +
+        "    var fakeStream = new MediaStream();" +
+        "    if (hasVideo) {" +
+        "      try {" +
+        "        var canvas = document.createElement('canvas');" +
+        "        canvas.width = 640; canvas.height = 480;" +
+        "        var ctx = canvas.getContext('2d');" +
+        "        ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, 640, 480);" +
+        "        ctx.fillStyle = '#00ff00'; ctx.font = 'bold 24px Arial';" +
+        "        ctx.fillText('CAMERA SPOOFED', 220, 220);" +
+        "        ctx.fillText('CamSwap Active', 230, 250);" +
+        "        var stream = canvas.mozCaptureStream ? canvas.mozCaptureStream(30) : canvas.captureStream(30);" +
+        "        var videoTrack = stream.getVideoTracks()[0];" +
+        "        if (videoTrack) fakeStream.addTrack(videoTrack);" +
+        "      } catch (e) { console.error('[CamSwap] Video error:', e); }" +
+        "    }" +
+        "    if (hasAudio) {" +
+        "      try {" +
+        "        var AudioCtx = window.AudioContext || window.webkitAudioContext || window.mozAudioContext;" +
+        "        if (AudioCtx) {" +
+        "          var ac = new AudioCtx(); var osc = ac.createOscillator(); var gain = ac.createGain();" +
+        "          gain.gain.value = 0.0001; osc.connect(gain); gain.connect(ac.destination); osc.start();" +
+        "          var dest = ac.createMediaStreamDestination(); gain.connect(dest);" +
+        "          var audioTrack = dest.stream.getAudioTracks()[0];" +
+        "          if (audioTrack) fakeStream.addTrack(audioTrack);" +
+        "        }" +
+        "      } catch (e) { console.error('[CamSwap] Audio error:', e); }" +
+        "    }" +
+        "    return fakeStream;" +
+        "  }" +
+        "  if (window.navigator.mediaDevices.getUserMedia) {" +
+        "    var originalGM = window.navigator.mediaDevices.getUserMedia;" +
         "    window.navigator.mediaDevices.getUserMedia = function(constraints) {" +
-        "      console.log('[CamSwap] getUserMedia called with:', JSON.stringify(constraints));" +
-        "      // Create a fake success response" +
+        "      console.log('[CamSwap] Intercepted getUserMedia'); " +
         "      return new Promise(function(resolve, reject) {" +
-        "        console.log('[CamSwap] Spoofing getUserMedia success...');" +
-        "        // Try to get the real stream first, if fails, create fake" +
-        "        originalGetUserMedia.call(window.navigator.mediaDevices, constraints)" +
-        "          .then(function(stream) {" +
-        "            console.log('[CamSwap] Real stream obtained'); " +
-        "            resolve(stream);" +
-        "          })" +
+        "        originalGM.call(window.navigator.mediaDevices, constraints)" +
+        "          .then(function(stream) { console.log('[CamSwap] Real camera OK'); resolve(stream); })" +
         "          .catch(function(err) {" +
-        "            console.log('[CamSwap] Creating fake stream due to:', err);" +
-        "            // Create fake MediaStream with fake tracks" +
-        "            var fakeStream = new MediaStream();" +
-        "            var hasVideo = constraints && constraints.video;" +
-        "            var hasAudio = constraints && constraints.audio;" +
-        "            if (hasVideo) {" +
-        "              var canvas = document.createElement('canvas');" +
-        "              canvas.width = 640; canvas.height = 480;" +
-        "              var ctx = canvas.getContext('2d');" +
-        "              ctx.fillStyle = '#000000';" +
-        "              ctx.fillRect(0, 0, canvas.width, canvas.height);" +
-        "              ctx.fillStyle = '#00FF00';" +
-        "              ctx.font = '20px Arial';" +
-        "              ctx.fillText('CamSwap Fake Video', 180, 240);" +
-        "              var stream = canvas.captureStream(30);" +
-        "              var videoTrack = stream.getVideoTracks()[0];" +
-        "              if (videoTrack) fakeStream.addTrack(videoTrack);" +
-        "            }" +
-        "            if (hasAudio) {" +
-        "              var audioContext = new (window.AudioContext || window.webkitAudioContext)();" +
-        "              var oscillator = audioContext.createOscillator();" +
-        "              var gainNode = audioContext.createGain();" +
-        "              gainNode.gain.value = 0;" +
-        "              oscillator.connect(gainNode);" +
-        "              gainNode.connect(audioContext.destination);" +
-        "              oscillator.start();" +
-        "              var dest = audioContext.createMediaStreamDestination();" +
-        "              gainNode.connect(dest);" +
-        "              var audioTrack = dest.stream.getAudioTracks()[0];" +
-        "              if (audioTrack) fakeStream.addTrack(audioTrack);" +
-        "            }" +
-        "            resolve(fakeStream);" +
+        "            console.warn('[CamSwap] Real camera FAILED:', err.message);" +
+        "            console.log('[CamSwap] Returning FAKE stream instead of error!');" +
+        "            try { resolve(createFakeStream(constraints && constraints.video, constraints && constraints.audio)); }" +
+        "            catch (e) { resolve(new MediaStream()); }" +
         "          });" +
         "      });" +
         "    };" +
-        "    console.log('[CamSwap] getUserMedia spoofed successfully');" +
+        "    console.log('[CamSwap] Override installed');" +
+        "  } else {" +
+        "    window.navigator.mediaDevices.getUserMedia = function(c) {" +
+        "      return Promise.resolve(createFakeStream(c && c.video, c && c.audio));" +
+        "    };" +
         "  }" +
-        "})();" ;
+        "  console.log('[CamSwap] COMPLETE - errors will be spoofed');" +
+        "})();";
 
     @Override
     public void init(final Api101PackageContext packageContext) {
@@ -89,12 +96,13 @@ public class WebViewHandler implements ICameraHandler {
         
         LogUtil.log(TAG + " 初始化 WebView Hook for: " + packageName);
         
-        // Hook WebView loading to inject JavaScript
+        // Hook standard Android WebView
         hookWebViewLoadUrl(classLoader, packageName);
         hookWebViewAddJavascriptInterface(classLoader, packageName);
-        
-        // Hook WebChromeClient permission requests
         hookWebChromeClientOnPermissionRequest(classLoader, packageName);
+        
+        // Hook GeckoView (used by Firefox)
+        hookGeckoView(classLoader, packageName);
         
         LogUtil.log(TAG + " WebView Hook 初始化完成");
     }
@@ -278,5 +286,133 @@ public class WebViewHandler implements ICameraHandler {
         } catch (Throwable t) {
             // Ignore - not critical
         }
+    }
+    
+    /**
+     * Hook GeckoView (used by Firefox) to inject JavaScript for getUserMedia spoofing
+     */
+    private void hookGeckoView(ClassLoader classLoader, String packageName) {
+        try {
+            // Try to load GeckoView classes
+            Class<?> geckoViewClass = null;
+            Class<?> geckoSessionClass = null;
+            
+            try {
+                geckoViewClass = classLoader.loadClass("org.mozilla.geckoview.GeckoView");
+                geckoSessionClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession");
+            } catch (ClassNotFoundException e) {
+                LogUtil.log(TAG + " GeckoView not found in this app, skipping GeckoView hooks");
+                return;
+            }
+            
+            LogUtil.log(TAG + " Found GeckoView classes, setting up hooks for: " + packageName);
+            
+            // Hook GeckoSession.setContentDelegate to inject JS when page loads
+            try {
+                Class<?> contentDelegateClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession$ContentDelegate");
+                
+                // We'll inject JS via ProgressDelegate which is called on page load
+                Class<?> progressDelegateClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession$ProgressDelegate");
+                
+                // Hook GeckoSession.setProgressDelegate
+                Method setProgressDelegateMethod = geckoSessionClass.getDeclaredMethod(
+                    "setProgressDelegate", progressDelegateClass);
+                
+                Api101Runtime.requireModule().hook(setProgressDelegateMethod).intercept(chain -> {
+                    Object[] args = toArgs(chain.getArgs());
+                    
+                    // Wrap or replace the progress delegate to inject our JS
+                    if (args[0] != null) {
+                        Object originalDelegate = args[0];
+                        args[0] = createGeckoProgressDelegateWrapper(
+                            classLoader, originalDelegate, packageName);
+                    }
+                    
+                    return chain.proceed(args);
+                });
+                
+                LogUtil.log(TAG + " Hooked GeckoSession.setProgressDelegate()");
+            } catch (Exception e) {
+                LogUtil.log(TAG + " Failed to hook GeckoSession.setProgressDelegate: " + e);
+            }
+            
+            // Also try to hook onPageStart directly if possible
+            try {
+                Class<?> progressDelegateClass = classLoader.loadClass("org.mozilla.geckoview.GeckoSession$ProgressDelegate");
+                
+                // Find onPageStart method
+                Method onPageStartMethod = null;
+                for (Method m : progressDelegateClass.getDeclaredMethods()) {
+                    if ("onPageStart".equals(m.getName())) {
+                        onPageStartMethod = m;
+                        break;
+                    }
+                }
+                
+                if (onPageStartMethod != null) {
+                    Api101Runtime.requireModule().hook(onPageStartMethod).intercept(chain -> {
+                        Object[] args = toArgs(chain.getArgs());
+                        
+                        // Call original first
+                        Object result = chain.proceed(args);
+                        
+                        // Then inject our JS
+                        try {
+                            GeckoSessionHelper.injectJavaScript(args[0], SPOOF_GET_USER_MEDIA_JS);
+                            LogUtil.log(TAG + " Injected getUserMedia spoof into GeckoView");
+                        } catch (Exception e) {
+                            LogUtil.log(TAG + " Failed to inject JS into GeckoView: " + e);
+                        }
+                        
+                        return result;
+                    });
+                    
+                    LogUtil.log(TAG + " Hooked GeckoSession.ProgressDelegate.onPageStart()");
+                }
+            } catch (Exception e) {
+                LogUtil.log(TAG + " Failed to hook onPageStart: " + e);
+            }
+            
+        } catch (Throwable t) {
+            LogUtil.log(TAG + " Failed to setup GeckoView hooks: " + t);
+        }
+    }
+    
+    /**
+     * Helper class for GeckoView JavaScript injection
+     */
+    private static class GeckoSessionHelper {
+        static void injectJavaScript(Object geckoSession, String js) {
+            if (geckoSession == null) return;
+            
+            try {
+                // Use evaluateJS method if available (GeckoView 89+)
+                Class<?> sessionClass = geckoSession.getClass();
+                try {
+                    Method evalMethod = sessionClass.getMethod("evaluateJS", String.class);
+                    evalMethod.invoke(geckoSession, js);
+                    return;
+                } catch (NoSuchMethodException e) {
+                    // Try older API
+                }
+                
+                // For older GeckoView versions, we may need to use a different approach
+                // This is a fallback - in practice, most modern Firefox versions support evaluateJS
+                LogUtil.log(TAG + " GeckoView evaluateJS method not found");
+            } catch (Exception e) {
+                LogUtil.log(TAG + " Failed to inject JS into GeckoSession: " + e);
+            }
+        }
+    }
+    
+    /**
+     * Create a wrapper for GeckoView ProgressDelegate to inject JavaScript on page load
+     */
+    private Object createGeckoProgressDelegateWrapper(ClassLoader classLoader, 
+                                                       Object originalDelegate, 
+                                                       String packageName) {
+        // For simplicity, we'll just return the original delegate
+        // The actual injection happens in the hooked onPageStart method above
+        return originalDelegate;
     }
 }

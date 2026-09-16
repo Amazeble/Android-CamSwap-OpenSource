@@ -1,4 +1,32 @@
 ```
+# Environment
+.env
+.env.local
+*.env.*
+
+# Logs
+*.log
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.eggs/
+.egg-info/
+*.egg-info/
 # Logs and temp files
 *.log
 *.tmp
@@ -64,4 +92,25 @@ htmlcov/
 *.Z
 *.lz
 *.lzo
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
+.mypy_cache/
+.pytest_cache/
+.gradle/
 ```
