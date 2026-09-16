@@ -1,66 +1,56 @@
-private static class GeckoSessionHelper {
+if (onPageStartMethod != null) {
+    Api101Runtime.requireModule()
+        .hook(onPageStartMethod)
+        .intercept(chain -> {
+            Object[] args = chain.getArgs().toArray(new Object[0]);
 
-    static void injectJavaScript(Object geckoSession, String js) {
-        if (geckoSession == null || js == null) {
-            LogUtil.log(TAG + " GeckoSession or JavaScript is null");
-            return;
-        }
+            Object result = chain.proceed(args);
 
-        try {
-            Class<?> sessionClass = geckoSession.getClass();
+            if (args.length > 0 && args[0] != null) {
+                Object geckoSession = args[0];
 
-            Method[] methods = sessionClass.getMethods();
-
-            for (Method method : methods) {
-                if (!"evaluateJS".equals(method.getName())) {
-                    continue;
-                }
-
-                Class<?>[] parameterTypes = method.getParameterTypes();
-
-                LogUtil.log(
-                    TAG + " Found GeckoView evaluateJS method: "
-                        + method.toGenericString()
-                );
-
-                /*
-                 * Most GeckoView versions expose evaluateJS(String).
-                 */
-                if (parameterTypes.length == 1
-                        && parameterTypes[0] == String.class) {
-                    method.setAccessible(true);
-                    method.invoke(geckoSession, js);
+                try {
+                    GeckoSessionHelper.injectJavaScript(
+                        geckoSession,
+                        SPOOF_GET_USER_MEDIA_JS
+                    );
 
                     LogUtil.log(
-                        TAG + " GeckoView JavaScript injection succeeded"
+                        TAG + " Injected spoof script during onPageStart"
                     );
-                    return;
+                } catch (Throwable t) {
+                    LogUtil.log(
+                        TAG + " onPageStart injection failed: " + t
+                    );
                 }
 
                 /*
-                 * Some GeckoView versions expose evaluateJS(String, boolean).
+                 * Inject again after page scripts have initialized.
                  */
-                if (parameterTypes.length == 2
-                        && parameterTypes[0] == String.class
-                        && parameterTypes[1] == boolean.class) {
-                    method.setAccessible(true);
-                    method.invoke(geckoSession, js, false);
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(1500);
 
-                    LogUtil.log(
-                        TAG + " GeckoView JavaScript injection succeeded "
-                            + "using evaluateJS(String, boolean)"
-                    );
-                    return;
-                }
+                        GeckoSessionHelper.injectJavaScript(
+                            geckoSession,
+                            SPOOF_GET_USER_MEDIA_JS
+                        );
+
+                        LogUtil.log(
+                            TAG + " Re-injected spoof script after page load"
+                        );
+                    } catch (Throwable t) {
+                        LogUtil.log(
+                            TAG + " Delayed GeckoView injection failed: " + t
+                        );
+                    }
+                }).start();
             }
 
-            LogUtil.log(
-                TAG + " No supported GeckoView evaluateJS overload was found"
-            );
-        } catch (Throwable t) {
-            LogUtil.log(
-                TAG + " GeckoView JavaScript injection failed: " + t
-            );
-        }
-    }
+            return result;
+        });
+
+    LogUtil.log(
+        TAG + " Hooked GeckoSession.ProgressDelegate.onPageStart()"
+    );
 }
