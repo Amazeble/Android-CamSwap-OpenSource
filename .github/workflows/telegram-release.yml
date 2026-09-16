@@ -11,15 +11,28 @@ on:
       - '.gitignore'
 
 jobs:
-  handle:
+  build:
     runs-on: ubuntu-latest
     if: github.event_name == 'release' || github.event_name == 'push'
 
     steps:
-      - name: Log event
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Gradle
         run: |
-          echo "Event: ${{ github.event_name }}"
-          echo "Repository: ${{ github.repository }}"
-          if [ "${{ github.event_name }}" == "release" ]; then
-            echo "Release: ${{ github.event.release.name }}"
-          fi
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30
