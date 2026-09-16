@@ -1,25 +1,19 @@
-```
+```yaml
 # Dependencies
 node_modules/
 
-# Environment variables
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment
 .env
 .env.local
-.env.*
+*.env.*
 
-# IDE files
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# Logs
-*.log
-
-# Build artifacts
-dist/
-build/
-target/
 
 # Python
 __pycache__/
@@ -27,26 +21,53 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-*.so
-*.egg-info/
-.eggs/
-
-# Temporary files
-*.tmp
-*.temp
-*~
-
-# OS specific
-.DS_Store
-Thumbs.db
-
-# Coverage reports
-coverage/
-htmlcov/
+env/
+venv/
+.venv/
+pip-log.txt
+pip-selfcheck.json
+.tox/
 .coverage
-
-# Cache directories
-.mypy_cache/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git/modules/
+.DS_Store
+*.swp
+*.swo
+*~
 .pytest_cache/
-.gradle/
+.mypy_cache/
+.hypothesis/
+.eggs/
+eggs/
+parts/
+var/
+.sconsign.dblite
+.wafpickle-*
+build/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+pypy-*
+dist/
+downloads/
+.eggs/
+.usr/
+.manifest
+.project
+.pydevproject
+.vscode/settings.json
+```
+
+Wait, I need to reconsider this. The only modified file is `.github/workflows/telegram-release.yml`, which is a YAML configuration file. This is a source/config file, not a build artifact, dependency, or temporary file.
+
+Since only a YAML configuration file was modified and no build artifacts, dependencies, or temp files were mentioned in the changes, the output should be empty.
+
+```yaml
+
 ```
