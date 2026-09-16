@@ -1,22 +1,5 @@
 ```yaml
-name: Release to Telegram
-on:
-  release:
-    types: [published]
+# GitHub workflow files
+.github/
 
-jobs:
-  notify:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send release notification to Telegram
-        uses: appleboy/telegram-action@v0.1.1
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: |
-            🚀 New release published: ${{ github.event.release.name }}
-            
-            ${{ github.event.release.body }}
-            
-            Download: ${{ github.event.release.html_url }}
 ```
