@@ -1,61 +1,22 @@
-*.class
-*.o
-*.obj
-*.exe
-*.dll
-*.so
-*.a
-*.out
-**/build/
-**/target/
-**/dist/
-**/node_modules/
-**/venv/
-**/env/
-**/.venv/
-**/__pycache__/
-**/.pytest_cache/
-**/.mypy_cache/
-**/.gradle/
-**/.vscode/
-**/.idea/
-*.swp
-*.swo
-*.tmp
-*.log
-.DS_Store
-Thumbs.db
-.env
-.env.local
-*.env.*
-coverage/
-htmlcov/
-.coverage
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-*.png
-*.jpg
-*.jpeg
-*.bmp
-*.gif
-*.webm
+```yaml
+name: Release to Telegram
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Message
+        uses: appleboy/telegram-action@v0.1.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 New release: ${{ github.event.release.name }}
+            
+            ${{ github.event.release.body }}
+            
+            Download: ${{ github.event.release.html_url }}
+```
