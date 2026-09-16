@@ -2,21 +2,16 @@
 # Logs and temp files
 *.log
 *.tmp
-*.swp
 
-# Environment
+# Environment variables
 .env
 .env.local
-.env.*
-
-# Editors
-.vscode/
-.idea/
+*.env.*
 
 # Dependencies
 node_modules/
-venv/
 .venv/
+venv/
 __pycache__/
 .mypy_cache/
 .pytest_cache/
@@ -35,6 +30,12 @@ target/
 *.a
 *.obj
 *.out
+
+# Editors/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # System files
 .DS_Store
