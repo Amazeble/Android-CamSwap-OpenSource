@@ -1440,20 +1440,28 @@ public final class Camera2SessionHook {
             LogUtil.log("【CS】Hook onConfigureFailed 失败: " + t);
         }
 
+        } catch (Throwable t) {
+            LogUtil.log("【CS】Hook onConfigureFailed 失败：" + t);
+        }
+
         try {
             Method m = resolveMethodOnClass(cbClass, "onConfigured", CameraCaptureSession.class);
             Api101Runtime.requireModule().hook(m).intercept(chain -> {
                 Object[] args = toArgs(chain.getArgs());
                 try {
-                    LogUtil.log("【CS】onConfigured ：" + args[0]);
+                    LogUtil.log("【CS】onConfigured :" + args[0]);
                     markYuvBridgeSessionReadyIfPossible();
+                    // ★ VTCam：会话配置成功后启动 input 泵
+                    if (isVtcamSession() && args[0] instanceof CameraCaptureSession) {
+                        startVtcamInputPump((CameraCaptureSession) args[0]);
                     }
-                    LogUtil.log("【CS】onConfigured before 异常: " + t);
+                } catch (Throwable t) {
+                    LogUtil.log("【CS】onConfigured before 异常：" + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook onConfigured 失败: " + t);
+            LogUtil.log("【CS】Hook onConfigured 失败：" + t);
         }
 
         try {
@@ -1461,14 +1469,15 @@ public final class Camera2SessionHook {
             Api101Runtime.requireModule().hook(m).intercept(chain -> {
                 Object[] args = toArgs(chain.getArgs());
                 try {
-                    LogUtil.log("【CS】onClosed ：" + args[0]);
+                    LogUtil.log("【CS】onClosed :" + args[0]);
+                    releaseVtcamResources();          // ★ VTCam
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onClosed before 异常: " + t);
+                    LogUtil.log("【CS】onClosed before 异常：" + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook session onClosed 失败: " + t);
+            LogUtil.log("【CS】Hook session onClosed 失败：" + t);
         }
     }
 
@@ -1476,8 +1485,43 @@ public final class Camera2SessionHook {
         releaseImageWriters(true);
     }
 
+
     private void releaseImageWriters(boolean clearTrackedReaders) {
+        releaseVtcamResources();                      // ★ VTCam
         if (clearTrackedReaders) {
+            isReleasing = true;
+            stopAllWhatsAppYuvPumps();
+            stopContinuousYuvPumper();
+        } else {
+            stopAllWhatsAppYuvPumps();
+            stopContinuousYuvPumper();
+        }
+        for (ImageWriter writer : imageWriterMap.values()) {
+            try {
+                writer.close();
+            } catch (Exception e) {
+                LogUtil.log("【CS】关闭 ImageWriter 失败：" + e);
+            }
+        }
+        imageWriterMap.clear();
+        pendingJpegSurfaces.clear();
+        pendingPhotoSurface = null;
+        bypassCurrentSession = false;
+        closeFakeYuvBridges();
+        internalFakeYuvReaderSurfaces.clear();
+        sessionKeptYuvSurfaces.clear();
+        cachedYuvFrameMap.clear();
+        releaseCachedRetriever();
+        lastYuvFrameWasFallback = true;
+        lastYuvFrameWasCodec = false;
+        if (clearTrackedReaders) {
+            trackedReaderSurfaces.clear();
+            surfaceFormatMap.clear();
+            surfaceSizeMap.clear();
+        }
+        isReleasing = false;
+    }
+
             isReleasing = true;
             stopAllWhatsAppYuvPumps();
             stopContinuousYuvPumper();
