@@ -8,7 +8,6 @@ import android.os.Build;
 import android.os.FileObserver;
 import android.os.Handler;
 import android.os.Looper;
-
 import io.github.zensu357.camswap.utils.LogUtil;
 import io.github.zensu357.camswap.utils.VideoManager;
 
@@ -17,13 +16,11 @@ import io.github.zensu357.camswap.utils.VideoManager;
  * BroadcastReceiver, then notifies via {@link Callback}.
  */
 public final class ConfigWatcher {
-
     public interface Callback {
         void onMediaSourceChanged();
-
         void onRotationChanged(int degrees);
-        void onPassthroughChanged(boolean enabled); // <-- ADD THIS
-}
+        void onPassthroughChanged(boolean enabled); // 👈 NEW: Added passthrough callback
+    }
 
     private final Callback callback;
     private android.database.ContentObserver configObserver;
@@ -85,7 +82,6 @@ public final class ConfigWatcher {
             } catch (Exception e) {
                 LogUtil.log("【CS】FileObserver 启动失败: " + e);
             }
-
             // Active Config Request via broadcast
             new Handler(Looper.getMainLooper()).postDelayed(() -> VideoManager.getConfig().requestConfig(context),
                     1000);
@@ -125,32 +121,32 @@ public final class ConfigWatcher {
         if (configJson == null)
             return;
 
-        // Snapshot old values
+        // 1. Snapshot old values
         String oldVideo = config.getString(ConfigManager.KEY_SELECTED_VIDEO, "");
         String oldImage = config.getString(ConfigManager.KEY_SELECTED_IMAGE, "");
         String oldMode = config.getString(ConfigManager.KEY_REPLACE_MODE, ConfigManager.REPLACE_MODE_VIDEO);
         boolean oldFpd = config.getBoolean(ConfigManager.KEY_FORCE_PRIVATE_DIR, false);
         int oldRotation = config.getInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, 0);
-        // Stream config snapshots
         String oldSourceType = config.getString(ConfigManager.KEY_MEDIA_SOURCE_TYPE, ConfigManager.MEDIA_SOURCE_LOCAL);
         String oldStreamUrl = config.getString(ConfigManager.KEY_STREAM_URL, "");
+        
+        // 👇 NEW: Snapshot old passthrough state BEFORE update
+        boolean oldPassthrough = config.getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false);
 
+        // 2. Update config from JSON
         config.updateConfigFromJSON(configJson);
-        boolean oldPassthrough = oldConfigSnapshot.optBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false); // Note: you may need to snapshot this before update
-        boolean newPassthrough = config.getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false);
 
-        if (oldPassthrough != newPassthrough) {
-            callback.onPassthroughChanged(newPassthrough);
-        }
-        // Snapshot new values
+        // 3. Snapshot new values
         String newVideo = config.getString(ConfigManager.KEY_SELECTED_VIDEO, "");
         String newImage = config.getString(ConfigManager.KEY_SELECTED_IMAGE, "");
         String newMode = config.getString(ConfigManager.KEY_REPLACE_MODE, ConfigManager.REPLACE_MODE_VIDEO);
         boolean newFpd = config.getBoolean(ConfigManager.KEY_FORCE_PRIVATE_DIR, false);
         int newRotation = config.getInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, 0);
-        // Stream config new values
         String newSourceType = config.getString(ConfigManager.KEY_MEDIA_SOURCE_TYPE, ConfigManager.MEDIA_SOURCE_LOCAL);
         String newStreamUrl = config.getString(ConfigManager.KEY_STREAM_URL, "");
+        
+        // 👇 NEW: Snapshot new passthrough state AFTER update
+        boolean newPassthrough = config.getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false);
 
         // Always extract video from Binder if attached
         if (intent.hasExtra(IpcContract.EXTRA_VIDEO_BUNDLE)) {
@@ -164,7 +160,11 @@ public final class ConfigWatcher {
                 !oldSourceType.equals(newSourceType) ||
                 !oldStreamUrl.equals(newStreamUrl);
 
-        if (mediaChanged) {
+        // 👇 NEW: Check for passthrough change first
+        if (oldPassthrough != newPassthrough) {
+            callback.onPassthroughChanged(newPassthrough);
+            LogUtil.log("【CS】配置更新: Passthrough 模式已切换为 " + newPassthrough);
+        } else if (mediaChanged) {
             VideoManager.updateVideoPath(false);
             callback.onMediaSourceChanged();
             LogUtil.log("【CS】配置更新: 媒体源变化，重启播放器");

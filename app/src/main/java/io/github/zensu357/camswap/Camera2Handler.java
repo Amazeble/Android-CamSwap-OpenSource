@@ -30,7 +30,7 @@ public class Camera2Handler implements ICameraHandler {
         final String packageName = packageContext.hostPackageName;
         
         hookGetCameraIdList(classLoader, packageName);
-
+        hookGetCameraCharacteristics(classLoader, packageName); 
         hookOpenCamera3Arg(classLoader, packageName);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             hookOpenCameraExecutor(classLoader, packageName);
@@ -331,6 +331,41 @@ public class Camera2Handler implements ICameraHandler {
         }
     }
 
+    // =====================================================================
+    // 6. CameraManager.getCameraCharacteristics(String)
+    //    Force Camera ID 1 (Front) to Portrait (0 degrees)
+    // =====================================================================
+    private void hookGetCameraCharacteristics(ClassLoader classLoader, String packageName) {
+        try {
+            Method method = resolveMethod(classLoader,
+                    "android.hardware.camera2.CameraManager",
+                    "getCameraCharacteristics", String.class);
+            Api101Runtime.requireModule().hook(method).intercept(chain -> {
+                Object[] args = toArgs(chain.getArgs());
+                Object result = chain.proceed(args);
+                try {
+                    String cameraId = (String) args[0];
+                    // Force Camera ID 1 (Front) to Portrait orientation (0 degrees)
+                    if ("1".equals(cameraId) && result != null) {
+                        java.lang.reflect.Field mValuesField = android.hardware.camera2.CameraCharacteristics.class.getDeclaredField("mValues");
+                        mValuesField.setAccessible(true);
+                        @SuppressWarnings("unchecked")
+                        java.util.HashMap<android.hardware.camera2.CameraCharacteristics.Key<?>, Object> mValues = 
+                            (java.util.HashMap<android.hardware.camera2.CameraCharacteristics.Key<?>, Object>) mValuesField.get(result);
+                        if (mValues != null) {
+                            mValues.put(android.hardware.camera2.CameraCharacteristics.SENSOR_ORIENTATION, 0);
+                            LogUtil.log("【CS】强制 Camera ID 1 (前置) SENSOR_ORIENTATION 为 0 (Portrait)");
+                        }
+                    }
+                } catch (Throwable t) {
+                    LogUtil.log("【CS】getCameraCharacteristics 修改异常: " + t);
+                }
+                return result;
+            });
+        } catch (Throwable t) {
+            LogUtil.log("【CS】Hook getCameraCharacteristics 失败: " + t);
+        }
+    }
     // ================================================================
     // Utilities
     // ================================================================
