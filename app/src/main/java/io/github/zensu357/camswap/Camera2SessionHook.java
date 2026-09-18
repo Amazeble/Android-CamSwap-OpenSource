@@ -327,6 +327,22 @@ public final class Camera2SessionHook {
         return Runnable::run;
     }
 
+    /** Helper: extract Surface list from List<OutputConfiguration>. */
+    private static List<Surface> surfacesFromOutputConfigs(List<?> configs) {
+        List<Surface> out = new ArrayList<>();
+        if (configs != null) {
+            for (Object o : configs) {
+                if (o instanceof OutputConfiguration) {
+                    Surface s = ((OutputConfiguration) o).getSurface();
+                    if (s != null) out.add(s);
+                } else if (o instanceof Surface) {
+                    out.add((Surface) o);
+                }
+            }
+        }
+        return out;
+    }
+
     /** onConfigured 后启动 input 泵 + repeating request，保持 VTCam 管线存活。 */
     private void startVtcamInputPump(CameraCaptureSession session) {
         try {
@@ -1212,6 +1228,21 @@ public final class Camera2SessionHook {
                             yuvBridgeSessionReady = false;
                             return chain.proceed(args);
                         }
+
+                        // ★★★ VTCam: build input+YUV+JPEG session, re-enter via variant 6 ★★★
+                        if (isVtcamSession() && !vtcamApplying) {
+                            LogUtil.log("【CS】【VTCam】createCaptureSession(List) outputs="
+                                    + ((List<?>) args[0]).size() + " → 重定向 VTCam 会话");
+                            @SuppressWarnings("unchecked")
+                            List<Surface> surfaces = (List<Surface>) args[0];
+                            CameraCaptureSession.StateCallback cb =
+                                    (CameraCaptureSession.StateCallback) args[1];
+                            Handler handler = (Handler) args[2];
+                            redirectVtcamSession(chain.getThisObject(), surfaces,
+                                    executorFromHandler(handler), cb);
+                            return null;           // ← skip the original List call entirely
+                        }
+
                         if (shouldBypassWhatsAppYuvSession((List<?>) args[0], getCurrentPackageName())) {
                             enableSessionBypass("createCaptureSession(List)");
                         } else {
@@ -1247,6 +1278,19 @@ public final class Camera2SessionHook {
                                 yuvBridgeSessionReady = false;
                                 return chain.proceed(args);
                             }
+
+                            // ★★★ VTCam: redirect via variant 6 ★★★
+                            if (isVtcamSession() && !vtcamApplying) {
+                                LogUtil.log("【CS】【VTCam】createCaptureSessionByOutputConfigurations → 重定向 VTCam 会话");
+                                List<Surface> surfaces = surfacesFromOutputConfigs((List<?>) args[0]);
+                                CameraCaptureSession.StateCallback cb =
+                                        (CameraCaptureSession.StateCallback) args[1];
+                                Handler handler = (Handler) args[2];
+                                redirectVtcamSession(chain.getThisObject(), surfaces,
+                                        executorFromHandler(handler), cb);
+                                return null;
+                            }
+
                             if (shouldBypassWhatsAppYuvSession((List<?>) args[0], getCurrentPackageName())) {
                                 enableSessionBypass("createCaptureSessionByOutputConfigurations");
                             } else {
@@ -1281,6 +1325,19 @@ public final class Camera2SessionHook {
                             yuvBridgeSessionReady = false;
                             return chain.proceed(args);
                         }
+
+                        // ★★★ VTCam: redirect via variant 6 ★★★
+                        if (isVtcamSession() && !vtcamApplying) {
+                            LogUtil.log("【CS】【VTCam】createConstrainedHighSpeedCaptureSession → 重定向 VTCam 会话");
+                            List<Surface> surfaces = surfacesFromOutputConfigs((List<?>) args[0]);
+                            CameraCaptureSession.StateCallback cb =
+                                    (CameraCaptureSession.StateCallback) args[1];
+                            Handler handler = (Handler) args[2];
+                            redirectVtcamSession(chain.getThisObject(), surfaces,
+                                    executorFromHandler(handler), cb);
+                            return null;
+                        }
+
                         if (shouldBypassWhatsAppYuvSession((List<?>) args[0], getCurrentPackageName())) {
                             enableSessionBypass("createConstrainedHighSpeedCaptureSession");
                         } else {
@@ -1316,6 +1373,19 @@ public final class Camera2SessionHook {
                                 yuvBridgeSessionReady = false;
                                 return chain.proceed(args);
                             }
+
+                            // ★★★ VTCam: redirect via variant 6 ★★★
+                            if (isVtcamSession() && !vtcamApplying) {
+                                LogUtil.log("【CS】【VTCam】createReprocessableCaptureSession → 重定向 VTCam 会话");
+                                List<Surface> surfaces = surfacesFromOutputConfigs((List<?>) args[1]);
+                                CameraCaptureSession.StateCallback cb =
+                                        (CameraCaptureSession.StateCallback) args[2];
+                                Handler handler = (Handler) args[3];
+                                redirectVtcamSession(chain.getThisObject(), surfaces,
+                                        executorFromHandler(handler), cb);
+                                return null;
+                            }
+
                             if (shouldBypassWhatsAppYuvSession((List<?>) args[1], getCurrentPackageName())) {
                                 enableSessionBypass("createReprocessableCaptureSession");
                             } else {
@@ -1353,6 +1423,19 @@ public final class Camera2SessionHook {
                                 yuvBridgeSessionReady = false;
                                 return chain.proceed(args);
                             }
+
+                            // ★★★ VTCam: redirect via variant 6 ★★★
+                            if (isVtcamSession() && !vtcamApplying) {
+                                LogUtil.log("【CS】【VTCam】createReprocessableCaptureSessionByConfigurations → 重定向 VTCam 会话");
+                                List<Surface> surfaces = surfacesFromOutputConfigs((List<?>) args[1]);
+                                CameraCaptureSession.StateCallback cb =
+                                        (CameraCaptureSession.StateCallback) args[2];
+                                Handler handler = (Handler) args[3];
+                                redirectVtcamSession(chain.getThisObject(), surfaces,
+                                        executorFromHandler(handler), cb);
+                                return null;
+                            }
+
                             if (shouldBypassWhatsAppYuvSession((List<?>) args[1], getCurrentPackageName())) {
                                 enableSessionBypass("createReprocessableCaptureSessionByConfigurations");
                             } else {
@@ -1388,6 +1471,15 @@ public final class Camera2SessionHook {
                                 yuvBridgeSessionReady = false;
                                 return chain.proceed(args);
                             }
+
+                            // ★★★ VTCam re-entry: config already built, pass through ★★★
+                            if (vtcamApplying) {
+                                LogUtil.log("【CS】【VTCam】SessionConfig 重入，直接放行");
+                                hookSessionCallback(
+                                        ((SessionConfiguration) args[0]).getStateCallback());
+                                return chain.proceed(args);
+                            }
+
                             LogUtil.log("【CS】createCaptureSession(SessionConfig)");
                             realSessionConfig = (SessionConfiguration) args[0];
                             if (shouldBypassWhatsAppYuvSession(realSessionConfig.getOutputConfigurations(),
