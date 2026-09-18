@@ -117,7 +117,7 @@ public class VideoProvider extends ContentProvider {
             return cursor;
         }
         io.github.zensu357.camswap.utils.LogUtil
-                .log("【CS】VideoProvider.query 返回 null, URI: " + uri.toString() + ", Seg: " + lastPathSegment);
+                .log("【CS】VideoProvider.query returned null, URI: " + uri.toString() + ", Seg: " + lastPathSegment);
         return null;
     }
 

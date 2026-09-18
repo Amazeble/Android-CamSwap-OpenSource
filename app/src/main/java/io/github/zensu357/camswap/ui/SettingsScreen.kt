@@ -83,7 +83,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     if (result.success) {
                         Toast.makeText(context, context.getString(R.string.settings_export_logs_success), Toast.LENGTH_LONG).show()
                     } else {
-                        Toast.makeText(context, "日志导出失败: ${result.errorMessage ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "日志导出failed: ${result.errorMessage ?: "未知错误"}", Toast.LENGTH_LONG).show()
                     }
                 } catch (t: Throwable) {
                     Toast.makeText(context, "导出异常: ${t.message}", Toast.LENGTH_LONG).show()
@@ -504,7 +504,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
                             exportLogLauncher.launch("camswap_logs_$timeStamp.zip")
                         } catch (e: Throwable) {
-                            Toast.makeText(context, "无法唤起文件保存器: ${e.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "cannot invoke file saver: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onLongClick = {

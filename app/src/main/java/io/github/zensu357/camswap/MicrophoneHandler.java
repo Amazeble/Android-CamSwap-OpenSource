@@ -29,7 +29,7 @@ import io.github.zensu357.camswap.utils.VideoManager;
  * <ul>
  * <li><b>静音模式 (mute)</b>：方案 A，将音频数据替换为全零</li>
  * <li><b>替换模式 (replace)</b>：方案 B，注入本地音频文件的 PCM 数据</li>
- * <li><b>视频同步 (video_sync)</b>：方案 C，从当前视频提取音轨，与视频帧同步播放</li>
+ * <li><b>video同步 (video_sync)</b>：方案 C，从当前video提取音轨，与video帧同步播放</li>
  * </ul>
  * <p>
  * 所有 Hook 在执行替换前都会实时检查 {@link ConfigManager#KEY_ENABLE_MIC_HOOK} 配置值，
@@ -45,7 +45,7 @@ public class MicrophoneHandler implements ICameraHandler {
     // 诊断日志计数器：audioPath 为 null 时限制日志数量
     private static final AtomicInteger audioPathNullLogCount = new AtomicInteger(0);
 
-    // 视频同步模式：记住上次已知的播放位置，避免播放器暂时不可用时回退到 0
+    // video同步模式：记住上次已知的播放位置，避免播放器暂时不可用时回退到 0
     private static final AtomicLong lastKnownPlaybackPositionMs = new AtomicLong(0);
 
     // 异步加载标记：使用 AtomicBoolean 防止竞态条件导致重复提交加载任务
@@ -129,7 +129,7 @@ public class MicrophoneHandler implements ICameraHandler {
             // 仅在前 3 次打印此日志，避免日志洪泛
             int count = audioPathNullLogCount.getAndIncrement();
             if (count < 3) {
-                LogUtil.log(TAG + " ⚠ isReplaceMode: audioPath 为 null，音频文件未找到！"
+                LogUtil.log(TAG + " ⚠ isReplaceMode: audioPath is null, audio file not found！"
                         + " video_path=" + VideoManager.video_path);
             }
             return false;
@@ -147,7 +147,7 @@ public class MicrophoneHandler implements ICameraHandler {
     }
 
     /**
-     * 检查是否为视频同步模式，并确保视频音轨数据已加载。
+     * Check if in video sync mode and ensure video audio track data is loaded.
      * 如果数据尚未就绪，触发异步加载并返回 false。
      */
     private static boolean isVideoSyncMode() {
@@ -157,7 +157,7 @@ public class MicrophoneHandler implements ICameraHandler {
         // Stream mode: video_sync is not supported (no local FD to extract audio).
         // Degrade to mute and log.
         if (VideoManager.isStreamMode()) {
-            LogUtil.log("【CS】流模式下 video_sync 不可用，自动降级为静音");
+            LogUtil.log("【CS】video_sync not available in stream mode, auto-falling back to mute");
             return false;
         }
         String videoPath = VideoManager.getCurrentVideoPath();
@@ -217,7 +217,7 @@ public class MicrophoneHandler implements ICameraHandler {
                     LogUtil.log(TAG + " 异步加载完成: " + filePath
                             + " ready=" + AudioDataProvider.isReady());
                 } catch (Exception e) {
-                    LogUtil.log(TAG + " 异步加载失败: " + e);
+                    LogUtil.log(TAG + " 异步加载failed: " + e);
                 } finally {
                     asyncLoadingInProgress.set(false);
                 }
@@ -226,7 +226,7 @@ public class MicrophoneHandler implements ICameraHandler {
     }
 
     /**
-     * 获取当前视频 MediaPlayer 的播放位置（毫秒）
+     * Get current video MediaPlayer playback position (milliseconds)
      * 按优先级尝试所有可能的 MediaPlayer 实例。
      * 当所有播放器都不在播放时，返回上次已知位置而非 0，防止同步失效。
      */
@@ -268,14 +268,14 @@ public class MicrophoneHandler implements ICameraHandler {
                     + " channelConfig=" + channelConfig + " audioFormat=" + audioFormat);
             return params;
         } catch (Exception e) {
-            LogUtil.log(TAG + " 动态获取参数失败，使用默认值: " + e);
+            LogUtil.log(TAG + " 动态获取参数failed，使用默认值: " + e);
         }
         return new AudioRecordParams(0, 44100,
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, 4096);
     }
 
     /**
-     * 方案 B 时长校验：对比音频文件与视频文件时长
+     * Scheme B duration check: compare audio file and video file duration
      */
     private static void checkDurationMismatch() {
         if (durationWarningShown.get())
@@ -286,7 +286,7 @@ public class MicrophoneHandler implements ICameraHandler {
             if (audioDuration <= 0)
                 return;
 
-            // 尝试获取视频时长
+            // Attempting to get video duration
             long videoDuration = -1;
             MediaPlayer[] players = {
                     HookMain.playerManager.c2_player, HookMain.playerManager.c2_player_1,
@@ -309,11 +309,11 @@ public class MicrophoneHandler implements ICameraHandler {
             // 超过 2 秒差异时警告
             long diff = Math.abs(audioDuration - videoDuration);
             if (diff > 2000) {
-                String msg = "【CS】⚠ 音频文件时长(" + (audioDuration / 1000) + "s)与视频时长("
-                        + (videoDuration / 1000) + "s)不一致，可能导致音画不同步";
+                String msg = "【CS】⚠ Audio file duration(" + (audioDuration / 1000) + "s)and video duration("
+                        + (videoDuration / 1000) + "s)mismatch, may cause audio-video desync";
                 LogUtil.log(msg);
-                VideoManager.showToast("音频与视频时长不一致: 音频 " + (audioDuration / 1000)
-                        + "s, 视频 " + (videoDuration / 1000) + "s");
+                VideoManager.showToast("音频and video durationmismatch: 音频 " + (audioDuration / 1000)
+                        + "s, video " + (videoDuration / 1000) + "s");
                 durationWarningShown.set(true);
             }
         } catch (Exception e) {
@@ -440,7 +440,7 @@ public class MicrophoneHandler implements ICameraHandler {
                                 new AudioRecordParams(audioSource, sampleRate, channelConfig, audioFormat, bufferSize));
                         preloadAudioAsync();
                     } catch (Throwable t) {
-                        LogUtil.log(TAG + " AudioRecord 构造函数 after 异常: " + t);
+                        LogUtil.log(TAG + " AudioRecord 构造函数 after exception: " + t);
                     }
                     return result;
                 }, "AudioRecord 构造函数");
@@ -470,7 +470,7 @@ public class MicrophoneHandler implements ICameraHandler {
                         new AudioRecordParams(0, sampleRate, channelConfig, audioFormat, bufferSize));
                 preloadAudioAsync();
             } catch (Throwable t) {
-                LogUtil.log(TAG + " 获取 Builder 创建的 AudioRecord 参数失败: " + t);
+                LogUtil.log(TAG + " 获取 Builder 创建的 AudioRecord 参数failed: " + t);
             }
             return result;
         }, "AudioRecord.Builder.build()");
@@ -493,7 +493,7 @@ public class MicrophoneHandler implements ICameraHandler {
                         + isMicHookEnabled() + " mode=" + getMicHookMode());
                 preloadAudioAsync();
             } catch (Throwable t) {
-                LogUtil.log(TAG + " startRecording before 异常: " + t);
+                LogUtil.log(TAG + " startRecording before exception: " + t);
             }
             return chain.proceed(args);
         }, "AudioRecord.startRecording()");
@@ -584,7 +584,7 @@ public class MicrophoneHandler implements ICameraHandler {
                                 + " (micHook=" + isMicHookEnabled()
                                 + " mode=" + getMicHookMode() + ")");
                     } catch (Throwable t) {
-                        LogUtil.log(TAG + " MediaRecorder.setAudioSource before 异常: " + t);
+                        LogUtil.log(TAG + " MediaRecorder.setAudioSource before exception: " + t);
                     }
                     return chain.proceed(args);
                 }, "MediaRecorder.setAudioSource(int)");
@@ -645,7 +645,7 @@ public class MicrophoneHandler implements ICameraHandler {
             Method method = resolveMethod(classLoader, className, methodName, parameterTypes);
             Api101Runtime.requireModule().hook(method).intercept(hooker);
         } catch (Throwable t) {
-            LogUtil.log(TAG + " Hook " + label + " 失败: " + t);
+            LogUtil.log(TAG + " Hook " + label + " failed: " + t);
         }
     }
 
@@ -655,7 +655,7 @@ public class MicrophoneHandler implements ICameraHandler {
             Constructor<?> constructor = resolveConstructor(classLoader, className, parameterTypes);
             Api101Runtime.requireModule().hook(constructor).intercept(hooker);
         } catch (Throwable t) {
-            LogUtil.log(TAG + " Hook " + label + " 失败: " + t);
+            LogUtil.log(TAG + " Hook " + label + " failed: " + t);
         }
     }
 

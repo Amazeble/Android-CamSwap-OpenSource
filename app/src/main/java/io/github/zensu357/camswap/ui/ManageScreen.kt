@@ -243,7 +243,7 @@ fun MediaItemRow(
                     }
                 }
             } else {
-                // 视频/图片缩略图
+                // Video/Image thumbnail
                 Card(
                     shape = MaterialTheme.shapes.small,
                     modifier = Modifier.size(80.dp)
@@ -272,7 +272,7 @@ fun MediaItemRow(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // 文件大小 + 时长（音频/视频）
+                // File size + duration (audio/video)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = String.format(Locale.getDefault(), "%.2f MB", item.size / (1024.0 * 1024.0)),

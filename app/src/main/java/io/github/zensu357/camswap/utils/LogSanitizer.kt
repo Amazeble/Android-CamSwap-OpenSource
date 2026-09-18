@@ -3,7 +3,7 @@ package io.github.zensu357.camswap.utils
 import java.util.regex.Pattern
 
 /**
- * 运行时日志脱敏器（防御式设计，严防类加载失败与任何正则异常）
+ * 运行时日志脱敏器（防御式设计，严防类加载failed与任何正则异常）
  */
 object LogSanitizer {
 

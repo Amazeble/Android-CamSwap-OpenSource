@@ -106,7 +106,7 @@ public final class HookGuards {
         }
 
         try {
-            LogUtil.log("【CS】不存在替换视频: " + resolvedPackageName + " 当前路径：" + getDisplayPath(videoFile));
+            LogUtil.log("【CS】不存在替换video: " + resolvedPackageName + " current path：" + getDisplayPath(videoFile));
         } catch (Exception e) {
             LogUtil.log("【CS】[toast]" + e);
         }

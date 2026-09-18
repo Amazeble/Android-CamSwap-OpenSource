@@ -52,14 +52,14 @@ public final class Camera2SessionHook {
      * YUV 帧缓存刷新间隔（毫秒）。
      * GL 渲染器可用时使用较短间隔以保持画面流畅；
      * 回退到 MediaMetadataRetriever 时自动使用较长间隔，避免阻塞泵线程。
-     * 高分辨率（>720p）使用更长间隔以避免 CPU 过载。
+     * height分辨率（>720p）使用更长间隔以避免 CPU 过载。
      */
     private static final long YUV_CACHE_REFRESH_GL_MS = 66L;
     private static final long YUV_CACHE_REFRESH_GL_HIRES_MS = 133L;
     private static final long YUV_CACHE_REFRESH_FALLBACK_MS = 200L;
     /** MediaCodec 直出路径刷新间隔：无 RGB 转换，可以更频繁 */
     private static final long YUV_CACHE_REFRESH_CODEC_MS = 33L;
-    /** 高分辨率阈值：超过此像素数时使用低帧率泵 */
+    /** height分辨率阈值：超过此像素数时使用低帧率泵 */
     private static final int YUV_HIRES_PIXEL_THRESHOLD = 1280 * 720;
 
     private final MediaPlayerManager playerManager;
@@ -99,7 +99,7 @@ public final class Camera2SessionHook {
     private volatile long lastGlBlackFallbackLogMs = 0L;
     private volatile long lastGlNullFallbackLogMs = 0L;
     private volatile long lastYuvKeepLogMs = 0L;
-    /** 上一次 YUV 帧是否通过回退路径（视频文件截帧）生成 */
+    /** 上一次 YUV 帧是否通过回退路径（video文件截帧）生成 */
     private volatile boolean lastYuvFrameWasFallback = true;
     /** 上一次 YUV 帧是否通过 MediaCodec 直出路径生成 */
     private volatile boolean lastYuvFrameWasCodec = false;
@@ -176,7 +176,7 @@ public final class Camera2SessionHook {
                 }
             }
             // 如果会话中已经有明确的映射规则，但该 Surface 未被重定向（说明被保留为真实会话目标），
-            // 则绝不能强行返回 virtualSurface，必须返回 null 以保持原始输出！
+            // 则绝不能强行返回 virtualSurface，必须returned null 以保持原始输出！
             if (!originalToVirtualMap.isEmpty() || !originalNativeToVirtualMap.isEmpty()) {
                 return null;
             }
@@ -332,12 +332,12 @@ public final class Camera2SessionHook {
 
                     hookAllCreateSessionVariants(args[0].getClass());
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onOpened before 异常: " + t);
+                    LogUtil.log("【CS】onOpened before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook onOpened 失败: " + t);
+            LogUtil.log("【CS】Hook onOpened failed: " + t);
         }
 
         // onClosed
@@ -346,19 +346,19 @@ public final class Camera2SessionHook {
             Api101Runtime.requireModule().hook(m).intercept(chain -> {
                 Object[] args = toArgs(chain.getArgs());
                 try {
-                    LogUtil.log("【CS】相机关闭 onClosed，释放播放器资源");
+                    LogUtil.log("【CS】camera closed onClosed, releasing player resources");
                     setBypassCurrentSession(false);
                     yuvBridgeSessionReady = false;
                     stopAllWhatsAppYuvPumps();
                     playerManager.releaseCamera2Resources();
                     releaseImageWriters();
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onClosed before 异常: " + t);
+                    LogUtil.log("【CS】onClosed before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook onClosed 失败: " + t);
+            LogUtil.log("【CS】Hook onClosed failed: " + t);
         }
 
         // onError
@@ -369,12 +369,12 @@ public final class Camera2SessionHook {
                 try {
                     LogUtil.log("【CS】相机错误onerror：" + (int) args[1]);
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onError before 异常: " + t);
+                    LogUtil.log("【CS】onError before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook onError 失败: " + t);
+            LogUtil.log("【CS】Hook onError failed: " + t);
         }
 
         // onDisconnected
@@ -383,19 +383,19 @@ public final class Camera2SessionHook {
             Api101Runtime.requireModule().hook(m).intercept(chain -> {
                 Object[] args = toArgs(chain.getArgs());
                 try {
-                    LogUtil.log("【CS】相机断开 onDisconnected，释放播放器资源");
+                    LogUtil.log("【CS】相机断开 onDisconnected，Releasing player resources");
                     setBypassCurrentSession(false);
                     yuvBridgeSessionReady = false;
                     stopAllWhatsAppYuvPumps();
                     playerManager.releaseCamera2Resources();
                     releaseImageWriters();
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onDisconnected before 异常: " + t);
+                    LogUtil.log("【CS】onDisconnected before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook onDisconnected 失败: " + t);
+            LogUtil.log("【CS】Hook onDisconnected failed: " + t);
         }
     }
 
@@ -403,7 +403,7 @@ public final class Camera2SessionHook {
     public void startPlayback() {
         if (readerSurface == null && readerSurface1 == null
                 && previewSurface == null && previewSurface1 == null) {
-            LogUtil.w("【CS】【SessionHook】【延迟播放】所有播放目标 Surface 均为 null，等待 addTarget 分发..."
+            LogUtil.w("【CS】[SessionHook][delayed playback] all playback target Surfaces are null, waiting for addTarget dispatch..."
                     + " [preview=" + previewSurface + ", preview1=" + previewSurface1
                     + ", reader=" + readerSurface + ", reader1=" + readerSurface1 + "]");
             pendingPlayback = true;
@@ -412,12 +412,12 @@ public final class Camera2SessionHook {
         // Skip redundant init when surfaces haven't changed since last call
         if (readerSurface == lastInitReader && readerSurface1 == lastInitReader1
                 && previewSurface == lastInitPreview && previewSurface1 == lastInitPreview1) {
-            LogUtil.log("【CS】【SessionHook】跳过重复 startPlayback：所有 Surface 均未发生改变");
+            LogUtil.log("【CS】【SessionHook】skipping duplicate startPlayback: all Surfaces unchanged");
             pendingPlayback = false;
             return;
         }
 
-        LogUtil.log("【CS】【SessionHook】[触发播放] Camera2 播放器装载 ->"
+        LogUtil.log("【CS】【SessionHook】[(triggering playback)] Camera2 播放器装载 ->"
                 + " preview: " + previewSurface + " (isValid=" + (previewSurface != null && previewSurface.isValid()) + ")"
                 + ", preview1: " + previewSurface1 + " (isValid=" + (previewSurface1 != null && previewSurface1.isValid()) + ")"
                 + ", reader: " + readerSurface + " (isValid=" + (readerSurface != null && readerSurface.isValid()) + ")"
@@ -437,7 +437,7 @@ public final class Camera2SessionHook {
         MediaPlayerManager pm = HookMain.playerManager;
         if (pm.c2_renderer != null) pm.c2_renderer.setRotation(userRotation);
         if (pm.c2_renderer_1 != null) pm.c2_renderer_1.setRotation(userRotation);
-        LogUtil.log("【CS】【SessionHook】渲染器旋转角度已应用: " + userRotation + "°");
+        LogUtil.log("【CS】【SessionHook】渲染器rotation angle度已应用: " + userRotation + "°");
     }
 
     public static long getSurfaceNativeHandle(Surface surface) {
@@ -611,7 +611,7 @@ public final class Camera2SessionHook {
     private boolean shouldBypassWhatsAppYuvSession(List<?> outputs, String packageName) {
         // 不再需要整体旁路 session：YUV reader surface 现在直接保留在 session 输出中，
         // preview surface 仍然替换为虚拟 surface。这样 Camera HAL 会为 YUV reader
-        // 产出正确格式的帧，同时 preview 仍然显示我们的替换视频。
+        // 产出正确格式的帧，同时 preview 仍然显示我们的替换video。
         return false;
     }
 
@@ -646,7 +646,7 @@ public final class Camera2SessionHook {
             isNew = true;
         }
         if (isNew || pendingPlayback) {
-            LogUtil.log("【CS】addTarget 触发播放 (preview: " + surface + ")");
+            LogUtil.log("【CS】addTarget (triggering playback) (preview: " + surface + ")");
             startPlayback();
         }
     }
@@ -662,7 +662,7 @@ public final class Camera2SessionHook {
         // GLVideoRenderer outputs RGBA which causes format mismatch crash
         // when CameraX acquires images from a YUV_420_888 ImageReader.
         if (isYuvReaderSurface(surface) && !shouldUseFakeYuvBridgeForPackage(getCurrentPackageName())) {
-            LogUtil.log("【CS】跳过 YUV reader surface 作为播放目标 (无 YUV 兼容): " + surface);
+            LogUtil.log("【CS】skipping YUV reader surface as playback target (no YUV compatible): " + surface);
             return;
         }
         boolean isNew = false;
@@ -674,7 +674,7 @@ public final class Camera2SessionHook {
             isNew = true;
         }
         if (isNew || pendingPlayback) {
-            LogUtil.log("【CS】addTarget 触发播放 (reader: " + surface + ")");
+            LogUtil.log("【CS】addTarget (triggering playback) (reader: " + surface + ")");
             startPlayback();
         }
     }
@@ -1030,12 +1030,12 @@ public final class Camera2SessionHook {
                             hookSessionCallback((CameraCaptureSession.StateCallback) args[1]);
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】createCaptureSession(List) before 异常: " + t);
+                    LogUtil.log("【CS】createCaptureSession(List) before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook createCaptureSession(List) 失败: " + t);
+            LogUtil.log("【CS】Hook createCaptureSession(List) failed: " + t);
         }
 
         // 2. createCaptureSessionByOutputConfigurations (API 24+)
@@ -1065,12 +1065,12 @@ public final class Camera2SessionHook {
                                 hookSessionCallback((CameraCaptureSession.StateCallback) args[1]);
                         }
                     } catch (Throwable t) {
-                        LogUtil.log("【CS】createCaptureSessionByOutputConfigurations before 异常: " + t);
+                        LogUtil.log("【CS】createCaptureSessionByOutputConfigurations before exception: " + t);
                     }
                     return chain.proceed(args);
                 });
             } catch (Throwable t) {
-                LogUtil.log("【CS】Hook createCaptureSessionByOutputConfigurations 失败: " + t);
+                LogUtil.log("【CS】Hook createCaptureSessionByOutputConfigurations failed: " + t);
             }
         }
 
@@ -1099,12 +1099,12 @@ public final class Camera2SessionHook {
                             hookSessionCallback((CameraCaptureSession.StateCallback) args[1]);
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】createConstrainedHighSpeedCaptureSession before 异常: " + t);
+                    LogUtil.log("【CS】createConstrainedHighSpeedCaptureSession before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook createConstrainedHighSpeedCaptureSession 失败: " + t);
+            LogUtil.log("【CS】Hook createConstrainedHighSpeedCaptureSession failed: " + t);
         }
 
         // 4. createReprocessableCaptureSession (API 23+)
@@ -1134,12 +1134,12 @@ public final class Camera2SessionHook {
                                 hookSessionCallback((CameraCaptureSession.StateCallback) args[2]);
                         }
                     } catch (Throwable t) {
-                        LogUtil.log("【CS】createReprocessableCaptureSession before 异常: " + t);
+                        LogUtil.log("【CS】createReprocessableCaptureSession before exception: " + t);
                     }
                     return chain.proceed(args);
                 });
             } catch (Throwable t) {
-                LogUtil.log("【CS】Hook createReprocessableCaptureSession 失败: " + t);
+                LogUtil.log("【CS】Hook createReprocessableCaptureSession failed: " + t);
             }
         }
 
@@ -1171,12 +1171,12 @@ public final class Camera2SessionHook {
                                 hookSessionCallback((CameraCaptureSession.StateCallback) args[2]);
                         }
                     } catch (Throwable t) {
-                        LogUtil.log("【CS】createReprocessableCaptureSessionByConfigurations before 异常: " + t);
+                        LogUtil.log("【CS】createReprocessableCaptureSessionByConfigurations before exception: " + t);
                     }
                     return chain.proceed(args);
                 });
             } catch (Throwable t) {
-                LogUtil.log("【CS】Hook createReprocessableCaptureSessionByConfigurations 失败: " + t);
+                LogUtil.log("【CS】Hook createReprocessableCaptureSessionByConfigurations failed: " + t);
             }
         }
 
@@ -1208,12 +1208,12 @@ public final class Camera2SessionHook {
                             hookSessionCallback(realSessionConfig.getStateCallback());
                         }
                     } catch (Throwable t) {
-                        LogUtil.log("【CS】createCaptureSession(SessionConfiguration) before 异常: " + t);
+                        LogUtil.log("【CS】createCaptureSession(SessionConfiguration) before exception: " + t);
                     }
                     return chain.proceed(args);
                 });
             } catch (Throwable t) {
-                LogUtil.log("【CS】Hook createCaptureSession(SessionConfiguration) 失败: " + t);
+                LogUtil.log("【CS】Hook createCaptureSession(SessionConfiguration) failed: " + t);
             }
         }
     }
@@ -1237,12 +1237,12 @@ public final class Camera2SessionHook {
                 try {
                     LogUtil.log("【CS】onConfigureFailed ：" + args[0]);
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onConfigureFailed before 异常: " + t);
+                    LogUtil.log("【CS】onConfigureFailed before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook onConfigureFailed 失败: " + t);
+            LogUtil.log("【CS】Hook onConfigureFailed failed: " + t);
         }
 
         try {
@@ -1253,12 +1253,12 @@ public final class Camera2SessionHook {
                     LogUtil.log("【CS】onConfigured ：" + args[0]);
                     markYuvBridgeSessionReadyIfPossible();
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onConfigured before 异常: " + t);
+                    LogUtil.log("【CS】onConfigured before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook onConfigured 失败: " + t);
+            LogUtil.log("【CS】Hook onConfigured failed: " + t);
         }
 
         try {
@@ -1268,12 +1268,12 @@ public final class Camera2SessionHook {
                 try {
                     LogUtil.log("【CS】onClosed ：" + args[0]);
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onClosed before 异常: " + t);
+                    LogUtil.log("【CS】onClosed before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook session onClosed 失败: " + t);
+            LogUtil.log("【CS】Hook session onClosed failed: " + t);
         }
     }
 
@@ -1294,7 +1294,7 @@ public final class Camera2SessionHook {
             try {
                 writer.close();
             } catch (Exception e) {
-                LogUtil.log("【CS】关闭 ImageWriter 失败: " + e);
+                LogUtil.log("【CS】关闭 ImageWriter failed: " + e);
             }
         }
         imageWriterMap.clear();
@@ -1493,7 +1493,7 @@ public final class Camera2SessionHook {
                     }
                 } catch (Throwable t) {
                     pump.running = false;
-                    LogUtil.log("【CS】YUV 回调分发失败: " + t);
+                    LogUtil.log("【CS】YUV 回调分发failed: " + t);
                 }
             }
         };
@@ -1593,7 +1593,7 @@ public final class Camera2SessionHook {
                 exitFakeYuvAcquire();
             }
         } catch (Exception e) {
-            LogUtil.log("【CS】YUV 伪帧获取失败: " + e);
+            LogUtil.log("【CS】YUV 伪帧获取failed: " + e);
             return null;
         }
     }
@@ -1609,7 +1609,7 @@ public final class Camera2SessionHook {
             } catch (IllegalStateException e) {
                 break;
             } catch (Exception e) {
-                LogUtil.log("【CS】清理 YUV 桥旧帧失败: " + e);
+                LogUtil.log("【CS】清理 YUV 桥旧帧failed: " + e);
                 break;
             }
             if (pendingImage == null) {
@@ -1730,11 +1730,11 @@ public final class Camera2SessionHook {
     }
 
     /**
-     * 从 MediaCodec YUV 解码器获取帧并缩放到目标尺寸。
-     * 如果解码器未运行、尚无帧可用、或有旋转偏移，返回 null（回退到 GL 路径）。
+     * 从 MediaCodec YUV 解码器获取帧并缩放到目标size。
+     * 如果解码器未运行、尚无帧可用、或有rotation偏移，returned null（回退到 GL 路径）。
      */
     private CachedYuvFrame tryBuildFromCodecDecoder(int width, int height, long nowMs) {
-        // 有用户旋转偏移时回退到 GL 路径（GL 渲染器原生支持旋转）
+        // 有用户rotation偏移时回退到 GL 路径（GL 渲染器原生支持rotation）
         int rotation = VideoManager.getConfig().getInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, 0);
         if (rotation != 0) {
             return null;
@@ -1748,14 +1748,14 @@ public final class Camera2SessionHook {
             return null;
         }
 
-        // 尺寸匹配：直接使用
+        // size匹配：直接使用
         if (decoded.width == width && decoded.height == height) {
             return new CachedYuvFrame(width, height,
                     decoded.yPlane, decoded.uPlane, decoded.vPlane,
                     nowMs, decoded.timestampNs, false);
         }
 
-        // 尺寸不匹配：缩放 YUV 平面
+        // size不匹配：缩放 YUV 平面
         int srcW = decoded.width;
         int srcH = decoded.height;
         int dstW = width;
@@ -1821,7 +1821,7 @@ public final class Camera2SessionHook {
         int width = image.getWidth();
         int height = image.getHeight();
         if (width <= 0 || height <= 0 || width != cached.width || height != cached.height) {
-            throw new IllegalStateException("YUV Image 尺寸不匹配");
+            throw new IllegalStateException("YUV Image size不匹配");
         }
 
         yBuffer.clear();
@@ -1905,7 +1905,7 @@ public final class Camera2SessionHook {
             fakeYuvBridgeMap.put(targetSurface, bridge);
             return bridge;
         } catch (Exception e) {
-            LogUtil.log("【CS】创建 YUV 桥失败: " + e);
+            LogUtil.log("【CS】创建 YUV 桥failed: " + e);
             return null;
         }
     }
@@ -1991,7 +1991,7 @@ public final class Camera2SessionHook {
             return;
         }
         lastGlNullFallbackLogMs = now;
-        LogUtil.log("【CS】YUV fallback: GL 截帧返回 null");
+        LogUtil.log("【CS】YUV fallback: GL 截帧returned null");
     }
 
     private void maybeLogGlBlackFallback() {
@@ -2139,7 +2139,7 @@ public final class Camera2SessionHook {
         LogUtil.log("【CS】MediaCodec YUV 解码器已启动");
     }
 
-    /** 媒体源变更时重启解码器（切换视频/旋转等） */
+    /** 媒体源变更时重启解码器（切换video/rotation等） */
     public void restartYuvDecoderForSourceChange() {
         MediaCodecYuvDecoder dec = yuvDecoder;
         if (dec != null) {
@@ -2175,16 +2175,16 @@ public final class Camera2SessionHook {
     }
 
     /**
-     * 截取当前帧（使用渲染器当前旋转），用于 JPEG 拍照替换。
+     * 截取当前帧（使用渲染器当前rotation），用于 JPEG 拍照替换。
      */
     private Bitmap captureFrameForStill(int targetWidth, int targetHeight) {
         return captureFrameInternal(targetWidth, targetHeight, -1);
     }
 
     /**
-     * 截取当前帧并强制应用 video_rotation_offset 旋转，用于 WhatsApp YUV 帧生成。
-     * 预览渲染器旋转设为 0°（本机自拍画面方向正确），
-     * 但 YUV 帧需要 video_rotation_offset 旋转才能让对方看到正确方向。
+     * 截取当前帧并强制应用 video_rotation_offset rotation，用于 WhatsApp YUV 帧生成。
+     * 预览渲染器rotation设为 0°（本机自拍画面方向正确），
+     * 但 YUV 帧需要 video_rotation_offset rotation才能让对方看到正确方向。
      */
     private Bitmap captureFrameForYuv(int targetWidth, int targetHeight) {
         int rotation = VideoManager.getConfig().getInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, 0);
@@ -2192,7 +2192,7 @@ public final class Camera2SessionHook {
     }
 
     /**
-     * @param rotationOverride -1=使用渲染器当前旋转, >=0=临时覆盖指定角度
+     * @param rotationOverride -1=使用渲染器当前rotation, >=0=临时覆盖指定角度
      */
     private Bitmap captureFrameInternal(int targetWidth, int targetHeight, int rotationOverride) {
         if (isReleasing) {
@@ -2287,7 +2287,7 @@ public final class Camera2SessionHook {
             }
             return fitBitmapToTargetAspect(frame, targetWidth, targetHeight);
         } catch (Exception e) {
-            LogUtil.log("【CS】视频文件截帧失败: " + e);
+            LogUtil.log("【CS】video文件截帧failed: " + e);
             // 出错时释放缓存的 retriever，下次重试
             releaseCachedRetriever();
             return null;
@@ -2441,10 +2441,10 @@ public final class Camera2SessionHook {
             }
             pendingJpegSurfaces.remove(surface);
             pendingPhotoSurface = null;
-            LogUtil.log("【CS】成功替换 JPEG 拍照照片为当前虚拟画面: 大小=" + jpegBytes.length + " 字节");
+            LogUtil.log("【CS】成功替换 JPEG 拍照照片为当前虚拟画面: size=" + jpegBytes.length + " 字节");
             return true;
         } catch (Exception e) {
-            LogUtil.log("【CS】替换 JPEG Image 失败: " + e);
+            LogUtil.log("【CS】替换 JPEG Image failed: " + e);
             return false;
         }
     }
@@ -2702,9 +2702,9 @@ public final class Camera2SessionHook {
             buffer.flip();
             image.setTimestamp(getNextMonotonicPtsNs());
             writer.queueInputImage(image);
-            LogUtil.log("【CS】成功泵入一张伪造图片 (" + jpegBytes.length + " bytes)");
+            LogUtil.log("【CS】Successfully pumped a fake image (" + jpegBytes.length + " bytes)");
         } catch (Exception e) {
-            LogUtil.log("【CS】照片注入失败: " + e);
+            LogUtil.log("【CS】照片注入failed: " + e);
         }
     }
 

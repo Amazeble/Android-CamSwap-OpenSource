@@ -162,7 +162,7 @@ public class HookMain {
         final String packageName = packageContext.hostPackageName;
         // Check if module is disabled
         if (getConfig().getBoolean(ConfigManager.KEY_DISABLE_MODULE, false)) {
-            LogUtil.log("【CS】模块已被配置禁用");
+            LogUtil.log("【CS】Module has been disabled by configuration");
             return;
         }
 
@@ -238,12 +238,12 @@ public class HookMain {
                         }
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】MediaRecorder.setCamera before 异常: " + t);
+                    LogUtil.log("【CS】MediaRecorder.setCamera before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook MediaRecorder.setCamera 失败: " + t);
+            LogUtil.log("【CS】Hook MediaRecorder.setCamera failed: " + t);
         }
     }
 
@@ -270,19 +270,19 @@ public class HookMain {
                                 initContentObserver(toast_content);
                                 NativeAudioHook.init();
                                 PermissionHelper.checkAndSetupPaths(toast_content, packageName);
-                                LogUtil.log("【CS】后台预热完成：配置与视频路径已就绪 (" + packageName + ")");
+                                LogUtil.log("【CS】Background warmup complete: config and video path ready (" + packageName + ")");
                             } catch (Throwable t) {
-                                LogUtil.log("【CS】后台预热异常: " + t);
+                                LogUtil.log("【CS】Background warmup exception: " + t);
                             }
                         }, "CS-AppWarmup").start();
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】callApplicationOnCreate after 异常: " + t);
+                    LogUtil.log("【CS】callApplicationOnCreate after exception: " + t);
                 }
                 return result;
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook callApplicationOnCreate 失败: " + t);
+            LogUtil.log("【CS】Failed to hook callApplicationOnCreate: " + t);
         }
     }
 
@@ -328,7 +328,7 @@ public class HookMain {
             });
         } catch (Throwable t) {
             activityLifecycleRegistered = false;
-            LogUtil.log("【CS】注册 ActivityLifecycleCallbacks 失败: " + t);
+            LogUtil.log("【CS】注册 ActivityLifecycleCallbacks failed: " + t);
         }
     }
 
@@ -371,12 +371,12 @@ public class HookMain {
                         }
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】ImageReader.Builder.build after 异常: " + t);
+                    LogUtil.log("【CS】ImageReader.Builder.build after exception: " + t);
                 }
                 return result;
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook ImageReader.Builder.build 失败 (可能低于 API 33): " + t);
+            LogUtil.log("【CS】Hook ImageReader.Builder.build failed (可能低于 API 33): " + t);
         }
     }
 
@@ -391,7 +391,7 @@ public class HookMain {
                         onImageReaderNewInstanceBefore(args);
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】ImageReader.newInstance before 异常: " + t);
+                    LogUtil.log("【CS】ImageReader.newInstance before exception: " + t);
                 }
 
                 try {
@@ -402,7 +402,7 @@ public class HookMain {
                             onImageReaderNewInstanceAfter(args, result);
                         }
                     } catch (Throwable t) {
-                        LogUtil.log("【CS】ImageReader.newInstance after 异常: " + t);
+                        LogUtil.log("【CS】ImageReader.newInstance after exception: " + t);
                     }
                     return result;
                 } finally {
@@ -410,7 +410,7 @@ public class HookMain {
                 }
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook ImageReader.newInstance 失败: " + t);
+            LogUtil.log("【CS】Hook ImageReader.newInstance failed: " + t);
         }
     }
 
@@ -442,7 +442,7 @@ public class HookMain {
                     .setType(XposedInterface.Invoker.Type.ORIGIN);
             Api101Runtime.requireModule().hook(method).intercept(chain -> interceptImageReaderAcquire(chain, originInvoker));
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook ImageReader." + methodName + " 失败: " + t);
+            LogUtil.log("【CS】Hook ImageReader." + methodName + " failed: " + t);
         }
     }
 
@@ -472,7 +472,7 @@ public class HookMain {
             } catch (UnsupportedOperationException e) {
                 // GL renderer produces RGBA but ImageReader expects YUV — return null
                 // to prevent crash (CameraX handles null from acquireLatestImage).
-                LogUtil.log("【CS】ImageReader acquire 格式不匹配，返回 null: " + e.getMessage());
+                LogUtil.log("【CS】ImageReader acquire 格式不匹配，returned null: " + e.getMessage());
                 return null;
             }
         } else {
@@ -482,7 +482,7 @@ public class HookMain {
                     result = chain.proceed(args);
                 }
             } catch (Throwable t) {
-                LogUtil.log("【CS】YUV ImageReader 兼容处理失败: " + t);
+                LogUtil.log("【CS】YUV ImageReader 兼容处理failed: " + t);
                 result = chain.proceed(args);
             }
         }
@@ -511,7 +511,7 @@ public class HookMain {
                 realImage.close();
             }
         } catch (Throwable ignored) {
-            // drain 失败（例如无帧可取或格式异常），安全忽略
+            // drain failed（例如无帧可取或格式异常），安全忽略
         }
     }
 
@@ -525,7 +525,7 @@ public class HookMain {
                 camera2Hook.replaceJpegImageIfNeeded(imageReader, image);
             }
         } catch (Exception e) {
-            LogUtil.log("【CS】处理 ImageReader 结果失败: " + e);
+            LogUtil.log("【CS】处理 ImageReader 结果failed: " + e);
         }
         return result;
     }
@@ -540,7 +540,7 @@ public class HookMain {
         imageReaderFormat = (int) args[2];
         need_to_show_toast = !getConfig().getBoolean(ConfigManager.KEY_DISABLE_TOAST, false);
         if (toast_content != null && need_to_show_toast) {
-            String msg = "渲染器: 宽 " + args[0] + "px  高 " + args[1] + "px";
+            String msg = "渲染器: 宽 " + args[0] + "px  height " + args[1] + "px";
             long now = SystemClock.elapsedRealtime();
             if (now - lastImageReaderToastMs > 4000L || !msg.equals(lastImageReaderToastMsg)) {
                 lastImageReaderToastMs = now;
@@ -582,12 +582,12 @@ public class HookMain {
                     camera2Hook.updateImageReaderListener(chain.getThisObject(), args[0],
                             (android.os.Handler) args[1]);
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】更新 YUV listener 失败: " + t);
+                    LogUtil.log("【CS】更新 YUV listener failed: " + t);
                 }
                 return result;
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook ImageReader.setOnImageAvailableListener 失败: " + t);
+            LogUtil.log("【CS】Hook ImageReader.setOnImageAvailableListener failed: " + t);
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -600,12 +600,12 @@ public class HookMain {
                     try {
                         camera2Hook.updateImageReaderListener(chain.getThisObject(), args[0], null);
                     } catch (Throwable t) {
-                        LogUtil.log("【CS】更新 Executor YUV listener 失败: " + t);
+                        LogUtil.log("【CS】更新 Executor YUV listener failed: " + t);
                     }
                     return result;
                 });
             } catch (Throwable t) {
-                LogUtil.log("【CS】Hook ImageReader.setOnImageAvailableListenerWithExecutor 失败: " + t);
+                LogUtil.log("【CS】Hook ImageReader.setOnImageAvailableListenerWithExecutor failed: " + t);
             }
         }
     }
@@ -621,12 +621,12 @@ public class HookMain {
                         LogUtil.log("【CS】onCaptureFailed原因：" + ((CaptureFailure) args[2]).getReason());
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onCaptureFailed before 异常: " + t);
+                    LogUtil.log("【CS】onCaptureFailed before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook CaptureCallback.onCaptureFailed 失败: " + t);
+            LogUtil.log("【CS】Hook CaptureCallback.onCaptureFailed failed: " + t);
         }
     }
 

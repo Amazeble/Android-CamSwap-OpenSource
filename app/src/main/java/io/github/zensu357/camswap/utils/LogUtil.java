@@ -47,7 +47,7 @@ public class LogUtil {
         if (message == null) {
             message = "null";
         }
-        String fullMsg = t != null ? message + "\n堆栈信息:\n" + Log.getStackTraceString(t) : message;
+        String fullMsg = t != null ? message + "\nStack trace:\n" + Log.getStackTraceString(t) : message;
         try {
             Log.e(TAG, fullMsg);
         } catch (Throwable ignored) {}
@@ -74,7 +74,7 @@ public class LogUtil {
                 whatStr = "媒体服务崩溃/挂死(100)";
                 break;
             case MediaPlayer.MEDIA_ERROR_NOT_VALID_FOR_PROGRESSIVE_PLAYBACK:
-                whatStr = "无法渐进式播放(200)";
+                whatStr = "Cannot play progressively(200)";
                 break;
             default:
                 whatStr = "代码(" + what + ")";
@@ -84,13 +84,13 @@ public class LogUtil {
         String extraStr;
         switch (extra) {
             case MediaPlayer.MEDIA_ERROR_IO:
-                extraStr = "文件IO读取错误(-1004，视频文件不存在或无读权限)";
+                extraStr = "文件IO读取错误(-1004，Video file does not exist or no read permission)";
                 break;
             case MediaPlayer.MEDIA_ERROR_MALFORMED:
-                extraStr = "文件格式不规范/损坏(-1007)";
+                extraStr = "File format non-standard/corrupted(-1007)";
                 break;
             case MediaPlayer.MEDIA_ERROR_UNSUPPORTED:
-                extraStr = "编解码器不支持该视频编码规格(-1010，建议转换为H.264 MP4)";
+                extraStr = "Codec does not support this video encoding spec(-1010，建议转换为H.264 MP4)";
                 break;
             case MediaPlayer.MEDIA_ERROR_TIMED_OUT:
                 extraStr = "媒体操作超时(-110)";
@@ -107,7 +107,7 @@ public class LogUtil {
     }
 
     /**
-     * 将 EGL 错误码转换为人类可读的中文解释
+     * 将 EGL error code转换为人类可读的中文解释
      */
     public static String explainEglError(int err) {
         switch (err) {
@@ -116,7 +116,7 @@ public class LogUtil {
             case EGL14.EGL_NOT_INITIALIZED:
                 return "EGL_NOT_INITIALIZED (0x3001: EGL未初始化)";
             case EGL14.EGL_BAD_ACCESS:
-                return "EGL_BAD_ACCESS (0x3002: 访问权限非法)";
+                return "EGL_BAD_ACCESS (0x3002: access permission illegal)";
             case EGL14.EGL_BAD_ALLOC:
                 return "EGL_BAD_ALLOC (0x3003: 显存/内存不足)";
             case EGL14.EGL_BAD_ATTRIBUTE:

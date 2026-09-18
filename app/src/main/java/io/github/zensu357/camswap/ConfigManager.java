@@ -51,7 +51,7 @@ public class ConfigManager {
     public static final String MIC_MODE_VIDEO_SYNC = "video_sync";
     public static final String REPLACE_MODE_VIDEO = "video";
     public static final String REPLACE_MODE_IMAGE = "image";
-    public static final String KEY_VIDEO_ROTATION_OFFSET = "video_rotation_offset"; // 视频旋转偏移角度
+    public static final String KEY_VIDEO_ROTATION_OFFSET = "video_rotation_offset"; // videorotation偏移角度
     public static final String KEY_ENABLE_PHOTO_FAKE = "enable_photo_fake"; // 启用拍照替换 (动态防御)
     public static final String KEY_ENABLE_WHATSAPP_CAMERA2_COMPAT = "enable_whatsapp_camera2_compat";
 
@@ -206,17 +206,17 @@ public class ConfigManager {
 
                 if (newConfig.length() > 0) {
                     setConfigSnapshot(newConfig);
-                    io.github.zensu357.camswap.utils.LogUtil.log("【CS】配置已通过 Provider 加载 (" + newConfig.length() + " keys)");
+                    io.github.zensu357.camswap.utils.LogUtil.log("【CS】config loaded via Provider (" + newConfig.length() + " keys)");
                     return true;
                 } else {
                     io.github.zensu357.camswap.utils.LogUtil
-                            .log("【CS】Provider Cursor 为空 (0 行), 降级到文件读取");
+                            .log("【CS】Provider Cursor is empty (0 行), falling back to file reading");
                 }
             } else {
-                io.github.zensu357.camswap.utils.LogUtil.log("【CS】Provider Cursor 为空, 降级到文件读取");
+                io.github.zensu357.camswap.utils.LogUtil.log("【CS】Provider Cursor is empty, falling back to file reading");
             }
         } catch (Exception e) {
-            io.github.zensu357.camswap.utils.LogUtil.log("【CS】配置 Provider 错误: " + e);
+            io.github.zensu357.camswap.utils.LogUtil.log("【CS】config Provider error: " + e);
         }
         return false;
     }
@@ -231,9 +231,9 @@ public class ConfigManager {
             intent.setPackage("io.github.zensu357.camswap"); // Explicit intent to wake up host receiver
             intent.putExtra(IpcContract.EXTRA_REQUESTER_PACKAGE, context.getPackageName());
             context.sendBroadcast(intent);
-            io.github.zensu357.camswap.utils.LogUtil.log("【CS】已发送配置请求广播 config request broadcast sent");
+            io.github.zensu357.camswap.utils.LogUtil.log("【CS】config request broadcast sent");
         } catch (Exception e) {
-            io.github.zensu357.camswap.utils.LogUtil.log("【CS】发送配置请求广播失败: " + e);
+            io.github.zensu357.camswap.utils.LogUtil.log("【CS】发送配置请求广播failed: " + e);
         }
     }
 
@@ -301,7 +301,7 @@ public class ConfigManager {
                                     reply.writeInt(1);
                                     pfd.writeToParcel(reply, android.os.Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
                                 } catch (Exception e) {
-                                    io.github.zensu357.camswap.utils.LogUtil.log("【CS】Binder PFD 失败: " + e);
+                                    io.github.zensu357.camswap.utils.LogUtil.log("【CS】Binder PFD failed: " + e);
                                     reply.writeInt(0);
                                 }
                                 return true;
@@ -311,18 +311,18 @@ public class ConfigManager {
                     });
                     intent.putExtra(IpcContract.EXTRA_VIDEO_BUNDLE, bundle);
                 } catch (Exception e) {
-                    io.github.zensu357.camswap.utils.LogUtil.log("【CS】广播附加 video_bundle 失败: " + e);
+                    io.github.zensu357.camswap.utils.LogUtil.log("【CS】广播附加 video_bundle failed: " + e);
                 }
             }
 
             context.sendBroadcast(intent);
             if (targetPackage != null && !targetPackage.isEmpty()) {
-                io.github.zensu357.camswap.utils.LogUtil.log("【CS】配置广播已发送到: " + targetPackage);
+                io.github.zensu357.camswap.utils.LogUtil.log("【CS】config broadcast sent to: " + targetPackage);
             } else {
-                io.github.zensu357.camswap.utils.LogUtil.log("【CS】配置广播已发送");
+                io.github.zensu357.camswap.utils.LogUtil.log("【CS】config broadcast sent");
             }
         } catch (Exception e) {
-            io.github.zensu357.camswap.utils.LogUtil.log("【CS】广播配置失败: " + e);
+            io.github.zensu357.camswap.utils.LogUtil.log("【CS】广播配置failed: " + e);
         }
     }
 
@@ -348,7 +348,7 @@ public class ConfigManager {
                     setConfigSnapshot(new JSONObject(stringBuilder.toString()));
                     lastLoadedTime = (fileModTime > 0) ? fileModTime : System.currentTimeMillis();
                     io.github.zensu357.camswap.utils.LogUtil
-                            .log("【CS】配置已从文件加载: " + configFile.getName());
+                            .log("【CS】config loaded from file: " + configFile.getName());
                 } catch (Exception e) {
                     io.github.zensu357.camswap.utils.LogUtil.log("【CS】Config file read error: " + e);
                     setConfigSnapshot(getConfigSnapshot());
@@ -526,9 +526,9 @@ public class ConfigManager {
             long now = System.currentTimeMillis();
             lastLoadedTime = now;
             lastReloadTime.set(now);
-            io.github.zensu357.camswap.utils.LogUtil.log("【CS】已通过广播更新内存配置");
+            io.github.zensu357.camswap.utils.LogUtil.log("【CS】memory config updated via broadcast");
         } catch (JSONException e) {
-            io.github.zensu357.camswap.utils.LogUtil.log("【CS】解析广播配置失败: " + e);
+            io.github.zensu357.camswap.utils.LogUtil.log("【CS】解析广播配置failed: " + e);
         }
     }
 }

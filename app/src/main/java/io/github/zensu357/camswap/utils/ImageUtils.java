@@ -12,7 +12,7 @@ public class ImageUtils {
 
     public static byte[] rgb2YCbCr420(int[] pixels, int width, int height) {
         int len = width * height;
-        // yuv格式数组大小，y亮度占len长度，u,v各占len/4长度。
+        // yuv格式数组size，y亮度占len长度，u,v各占len/4长度。
         byte[] yuv = new byte[len * 3 / 2];
         int y, u, v;
         for (int i = 0; i < height; i++) {

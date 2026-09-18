@@ -53,7 +53,7 @@ fun HomeScreen(
     val isSelected = !mediaUiState.selectedVideoName.isNullOrEmpty()
     val isWorking = mainUiState.hasPermission && hasMedia && isSelected && !mainUiState.isModuleDisabled
 
-    // Get display name (视频或图片)
+    // Get display name (Video or Image)
     val displayMediaName: String? = run {
         val selectedItem = mediaUiState.videos.find { it.name == mediaUiState.selectedVideoName }
         val raw = selectedItem?.displayName ?: mediaUiState.selectedVideoName
@@ -298,7 +298,7 @@ fun StatusCard(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                // 1. 视频源
+                // 1. Video Source
                 StatusRow(
                     icon = Icons.Default.Videocam,
                     label = stringResource(R.string.status_label_video),
@@ -338,7 +338,7 @@ fun StatusCard(
                     tint = textColor
                 )
 
-                // 4. 视频原声
+                // 4. Video Audio
                 StatusRow(
                     icon = if (playVideoSound) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
                     label = stringResource(R.string.status_label_video_sound),

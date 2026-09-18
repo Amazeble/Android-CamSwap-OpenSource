@@ -17,19 +17,19 @@ object ResidualCleaner {
 
     // 常见虚拟相机及敏感路径列表
     private val KNOWN_RISK_PATHS = listOf(
-        "/sdcard/DCIM/Camera1" to "CamSwap 默认配置及媒体目录",
-        "/sdcard/DCIM/Camera1/cs_config.json" to "CamSwap 主配置文件",
-        "/sdcard/DCIM/Camera1/virtual.mp4" to "CamSwap 默认替换视频",
-        "/sdcard/DCIM/Camera/virtual.mp4" to "VCam 传统替换视频文件",
-        "/sdcard/DCIM/Camera/disable.jpg" to "VCam 禁用标记文件",
-        "/sdcard/DCIM/Camera/no-silent.jpg" to "VCam 静音标记文件",
-        "/data/local/tmp/libcs_camserver.so" to "CameraServer 注入模块缓存",
-        "/data/local/tmp/cs-injector" to "CameraServer 注入器可执行文件",
-        "/data/local/tmp/cs_cam_shm" to "CamSwap 共享内存临时句柄"
+        "/sdcard/DCIM/Camera1" to "CamSwap default config and media directory",
+        "/sdcard/DCIM/Camera1/cs_config.json" to "CamSwap main config file",
+        "/sdcard/DCIM/Camera1/virtual.mp4" to "CamSwap 默认替换video",
+        "/sdcard/DCIM/Camera/virtual.mp4" to "VCam 传统替换video文件",
+        "/sdcard/DCIM/Camera/disable.jpg" to "VCam disabled marker file",
+        "/sdcard/DCIM/Camera/no-silent.jpg" to "VCam mute marker file",
+        "/data/local/tmp/libcs_camserver.so" to "CameraServer injection module cache",
+        "/data/local/tmp/cs-injector" to "CameraServer injector executable file",
+        "/data/local/tmp/cs_cam_shm" to "CamSwap shared memory temporary handle"
     )
 
     /**
-     * 扫描系统中的残留路径与敏感配置（单次批量检测，绝不高频循环调用 su）
+     * 扫描系统中的残留路径与敏感配置（单次批量检测，绝不height频循环调用 su）
      */
     fun scanResiduals(useRoot: Boolean = false): List<ScanResult> {
         val results = mutableListOf<ScanResult>()
@@ -70,7 +70,7 @@ object ResidualCleaner {
                 }
                 process.waitFor()
             } catch (_: Throwable) {
-                // 忽略非 Root 或执行失败
+                // 忽略非 Root 或执行failed
             }
         }
 
@@ -96,7 +96,7 @@ object ResidualCleaner {
             }
             success
         } catch (e: Exception) {
-            LogUtil.log("【CS】【ResidualCleaner】清理残留失败 $path: ${e.message}")
+            LogUtil.log("【CS】【ResidualCleaner】清理残留failed $path: ${e.message}")
             false
         }
     }

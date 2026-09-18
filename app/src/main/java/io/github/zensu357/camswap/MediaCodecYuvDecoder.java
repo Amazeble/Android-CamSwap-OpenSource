@@ -123,7 +123,7 @@ final class MediaCodecYuvDecoder {
                 decodeOnePass();
             } catch (Exception e) {
                 if (running) {
-                    LogUtil.log("【CS】YuvDecoder 异常: " + e);
+                    LogUtil.log("【CS】YuvDecoder exception: " + e);
                     // brief pause before retry
                     try { Thread.sleep(500); } catch (InterruptedException ie) { break; }
                 }
@@ -145,14 +145,14 @@ final class MediaCodecYuvDecoder {
             } else if (videoPath != null) {
                 extractor.setDataSource(videoPath);
             } else {
-                LogUtil.log("【CS】YuvDecoder: 无可用视频源");
+                LogUtil.log("【CS】YuvDecoder: No available video source");
                 try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
                 return;
             }
 
             int trackIndex = selectVideoTrack(extractor);
             if (trackIndex < 0) {
-                LogUtil.log("【CS】YuvDecoder: 未发现视频轨道");
+                LogUtil.log("【CS】YuvDecoder: No video track found");
                 return;
             }
             extractor.selectTrack(trackIndex);
@@ -180,9 +180,9 @@ final class MediaCodecYuvDecoder {
             decoder.configure(format, null, null, 0);
             decoder.start();
 
-            LogUtil.log("【CS】【YUV解码器】硬件解码器启动成功！(名称: " + decoder.getName()
-                    + ", MIME: " + mime + ", 视频规格: " + videoWidth + "x" + videoHeight
-                    + " @" + videoFrameRate + "fps, 旋转角: " + videoRotation + "°)");
+            LogUtil.log("【CS】【YUV解码器】Hardware decoder started successfully！(name: " + decoder.getName()
+                    + ", MIME: " + mime + ", video specs: " + videoWidth + "x" + videoHeight
+                    + " @" + videoFrameRate + "fps, rotation angle: " + videoRotation + "°)");
 
             decodeFrames(decoder, extractor);
 

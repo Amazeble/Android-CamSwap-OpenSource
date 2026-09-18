@@ -155,10 +155,10 @@ public class VideoToFrames implements Runnable {
             String rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
             if (rotation != null) {
                 mVideoRotation = Integer.parseInt(rotation);
-                LogUtil.log("【CS】【decoder】视频旋转角度: " + mVideoRotation);
+                LogUtil.log("【CS】【decoder】videorotation angle度: " + mVideoRotation);
             }
         } catch (Exception e) {
-            LogUtil.log("【CS】【decoder】获取视频旋转角度失败: " + e.getMessage());
+            LogUtil.log("【CS】【decoder】获取videorotation angle度failed: " + e.getMessage());
         } finally {
             try {
                 retriever.release();
@@ -173,7 +173,7 @@ public class VideoToFrames implements Runnable {
             extractor.setDataSource(fd);
             int trackIndex = selectTrack(extractor);
             if (trackIndex < 0) {
-                LogUtil.log("【CS】【decoder】未发现视频轨道(FD)");
+                LogUtil.log("【CS】【decoder】No video track found(FD)");
                 return;
             }
             extractor.selectTrack(trackIndex);
@@ -183,9 +183,9 @@ public class VideoToFrames implements Runnable {
             showSupportedColorFormat(decoder.getCodecInfo().getCapabilitiesForType(mime));
             if (isColorFormatSupported(decodeColorFormat, decoder.getCodecInfo().getCapabilitiesForType(mime))) {
                 mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, decodeColorFormat);
-                LogUtil.log("【CS】【decoder】设置解码颜色格式为 " + decodeColorFormat);
+                LogUtil.log("【CS】【decoder】setting decoder color format to " + decodeColorFormat);
             } else {
-                LogUtil.log("【CS】【decoder】无法设置解码颜色格式, 颜色格式类型 " + decodeColorFormat + " 不支持");
+                LogUtil.log("【CS】【decoder】无法设置解码颜色格式, 颜色格式类型 " + decodeColorFormat + " not supported");
                 LogUtil.log("【CS】【decoder】unable to set decode color format, color format type " + decodeColorFormat
                         + " not supported");
             }
@@ -233,10 +233,10 @@ public class VideoToFrames implements Runnable {
             String rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
             if (rotation != null) {
                 mVideoRotation = Integer.parseInt(rotation);
-                LogUtil.log("【CS】【decoder】视频旋转角度: " + mVideoRotation);
+                LogUtil.log("【CS】【decoder】videorotation angle度: " + mVideoRotation);
             }
         } catch (Exception e) {
-            LogUtil.log("【CS】【decoder】获取视频旋转角度失败: " + e.getMessage());
+            LogUtil.log("【CS】【decoder】获取videorotation angle度failed: " + e.getMessage());
         } finally {
             try {
                 retriever.release();
@@ -252,7 +252,7 @@ public class VideoToFrames implements Runnable {
             extractor.setDataSource(videoFilePath);
             int trackIndex = selectTrack(extractor);
             if (trackIndex < 0) {
-                LogUtil.log("【CS】【decoder】未发现视频轨道(" + videoFilePath + ")");
+                LogUtil.log("【CS】【decoder】No video track found(" + videoFilePath + ")");
                 return;
             }
             extractor.selectTrack(trackIndex);
@@ -262,9 +262,9 @@ public class VideoToFrames implements Runnable {
             showSupportedColorFormat(decoder.getCodecInfo().getCapabilitiesForType(mime));
             if (isColorFormatSupported(decodeColorFormat, decoder.getCodecInfo().getCapabilitiesForType(mime))) {
                 mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, decodeColorFormat);
-                LogUtil.log("【CS】【decoder】设置解码颜色格式为 " + decodeColorFormat);
+                LogUtil.log("【CS】【decoder】setting decoder color format to " + decodeColorFormat);
             } else {
-                LogUtil.log("【CS】【decoder】无法设置解码颜色格式，颜色格式类型 " + decodeColorFormat + " 不支持");
+                LogUtil.log("【CS】【decoder】cannot set decoder color format, color format type " + decodeColorFormat + " not supported");
                 LogUtil.log("【CS】【decoder】unable to set decode color format, color format type " + decodeColorFormat
                         + " not supported");
             }
@@ -315,7 +315,7 @@ public class VideoToFrames implements Runnable {
         long startWhen = 0;
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
 
-        // 计算初始旋转角度决定是否需要内存解码模式
+        // 计算初始rotation angle度决定是否需要内存解码模式
         int manualOffset = 0;
         try {
             manualOffset = HookMain.getConfig().getInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, 0);
@@ -324,7 +324,7 @@ public class VideoToFrames implements Runnable {
         int initialEffectiveRotation = (mVideoRotation + manualOffset + 360) % 360;
         boolean needSoftDecode = (initialEffectiveRotation != 0) || outputImageFormat != null;
 
-        // 如果需要旋转或需要填充 data_buffer，则不配置 Surface（走内存解码）
+        // 如果需要rotation或需要填充 data_buffer，则不配置 Surface（走内存解码）
         Surface configSurface = needSoftDecode ? null : play_surf;
         decoder.configure(mediaFormat, configSurface, null, 0);
 
@@ -366,10 +366,10 @@ public class VideoToFrames implements Runnable {
                         is_first = true;
                     }
                     if (configSurface == null) {
-                        // 内存解码模式：获取帧数据，做旋转处理
+                        // 内存解码模式：获取帧数据，做rotation处理
                         Image image = decoder.getOutputImage(outputBufferId);
 
-                        // 动态重新计算旋转角度（配置可能被通知栏按钮实时更新）
+                        // 动态重新计算rotation angle度（配置可能被通知栏按钮实时更新）
                         int currentManualOffset = 0;
                         try {
                             currentManualOffset = HookMain.getConfig().getInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET,
@@ -427,12 +427,12 @@ public class VideoToFrames implements Runnable {
                             }
                         }
 
-                        // 如果有 play_surf（Camera2 reader Surface），将旋转后的帧渲染上去
+                        // 如果有 play_surf（Camera2 reader Surface），将rotation后的帧渲染上去
                         if (play_surf != null) {
                             try {
                                 renderNV21ToSurface(processedData, finalWidth, finalHeight, play_surf);
                             } catch (Exception e) {
-                                LogUtil.log("【CS】渲染到Surface失败: " + e.toString());
+                                LogUtil.log("【CS】渲染到Surfacefailed: " + e.toString());
                             }
                         }
 
@@ -540,7 +540,7 @@ public class VideoToFrames implements Runnable {
 
     /**
      * 将 NV21 数据转为 Bitmap 并渲染到指定 Surface。
-     * 用于 Camera2 reader 路径在旋转后手动渲染帧。
+     * 用于 Camera2 reader 路径在rotation后手动渲染帧。
      */
     private void renderNV21ToSurface(byte[] nv21Data, int width, int height, Surface surface) {
         android.graphics.YuvImage yuvImage = new android.graphics.YuvImage(

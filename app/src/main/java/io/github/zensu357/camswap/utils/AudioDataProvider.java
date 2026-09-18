@@ -73,16 +73,16 @@ public class AudioDataProvider {
                 if (ctx != null) {
                     java.io.File privateAudio = new java.io.File(ctx.getFilesDir(), "vcam_private_audio");
                     if (privateAudio.exists() && privateAudio.length() > 0) {
-                        LogUtil.log(TAG + " 使用私有目录音频: " + privateAudio.getAbsolutePath());
+                        LogUtil.log(TAG + " using private directory audio: " + privateAudio.getAbsolutePath());
                         return privateAudio.getAbsolutePath();
                     }
                 }
             } catch (Exception e) {
-                LogUtil.log(TAG + " 检查私有目录音频失败: " + e);
+                LogUtil.log(TAG + " 检查私有目录音频failed: " + e);
             }
 
             // 尝试通过 ContentProvider 拷贝
-            LogUtil.log(TAG + " 本地目录无音频文件 (dir=" + audioDir
+            LogUtil.log(TAG + " no audio files in local directory (dir=" + audioDir
                     + ", selected=" + selectedAudio + ")，尝试通过 Provider 拷贝");
             String privatePath = VideoManager.copyAudioToPrivateDir();
             if (privatePath != null) {
@@ -95,14 +95,14 @@ public class AudioDataProvider {
             if (!publicDir.equals(audioDir)) {
                 localResult = findAudioInDir(publicDir, selectedAudio);
                 if (localResult != null) {
-                    LogUtil.log(TAG + " 在公共目录找到音频: " + localResult);
+                    LogUtil.log(TAG + " found audio in public directory: " + localResult);
                     return localResult;
                 }
             }
 
-            LogUtil.log(TAG + " ⚠ 所有路径均未找到音频文件！selected=" + selectedAudio);
+            LogUtil.log(TAG + " ⚠ No audio file found in any path! selected=" + selectedAudio);
         } else {
-            LogUtil.log(TAG + " 本地目录无音频文件 (dir=" + audioDir
+            LogUtil.log(TAG + " no audio files in local directory (dir=" + audioDir
                     + ", selected=" + selectedAudio + ")");
         }
 
@@ -167,7 +167,7 @@ public class AudioDataProvider {
      */
     public static boolean loadAudioFile(String filePath) {
         if (filePath == null || filePath.isEmpty()) {
-            LogUtil.log(TAG + " 无音频文件路径");
+            LogUtil.log(TAG + " no audio file path");
             return false;
         }
 
@@ -180,7 +180,7 @@ public class AudioDataProvider {
             boolean isVirtualPath = "/proc/self/cmdline".equals(filePath);
             File file = new File(filePath);
             if (!isVirtualPath && !file.exists()) {
-                LogUtil.log(TAG + " 音频文件不存在: " + filePath);
+                LogUtil.log(TAG + " audio file does not exist: " + filePath);
                 return false;
             }
 
@@ -311,7 +311,7 @@ public class AudioDataProvider {
                     }
                 }
 
-                // 裁剪到实际大小
+                // 裁剪到实际size
                 pcmData = Arrays.copyOf(tempBuffer, totalSamples);
                 playbackPosition = 0;
                 currentFilePath = filePath;
@@ -326,7 +326,7 @@ public class AudioDataProvider {
                 return true;
 
             } catch (Exception e) {
-                LogUtil.log(TAG + " 解码失败: " + e);
+                LogUtil.log(TAG + " 解码failed: " + e);
                 pcmData = null;
                 currentFilePath = null;
                 return false;
@@ -532,7 +532,7 @@ public class AudioDataProvider {
     }
 
     // ================================================================
-    // 按时间位置填充方法 — 方案 C 视频同步专用
+    // Fill method by time position - Scheme C video sync only
     // ================================================================
 
     /**

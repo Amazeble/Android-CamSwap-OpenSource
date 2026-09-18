@@ -50,7 +50,7 @@ public class NativeAudioHook {
      * 复用 MicrophoneHandler 的模式判断逻辑。
      *
      * @param buffer     目标缓冲区（PCM 16-bit 小端序）
-     * @param size       缓冲区大小（字节）
+     * @param size       缓冲区size（字节）
      * @param sampleRate 采样率 (Hz)
      * @param channels   声道数
      * @return 填充的字节数，-1 表示 hook 未启用（不替换，保留原始录音）
@@ -65,7 +65,7 @@ public class NativeAudioHook {
             String mode = MicrophoneHandler.getMicHookModeStatic();
 
             if (ConfigManager.MIC_MODE_VIDEO_SYNC.equals(mode)) {
-                // 方案 C: 视频同步
+                // 方案 C: video同步
                 long posMs = MicrophoneHandler.getVideoPlaybackPositionMsStatic();
 
                 if (!AudioDataProvider.isReady()) {

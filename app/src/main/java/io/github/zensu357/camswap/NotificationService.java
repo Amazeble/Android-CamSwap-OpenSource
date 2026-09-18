@@ -39,7 +39,7 @@ public class NotificationService extends Service {
             } else if (ACTION_NEXT_INTERNAL.equals(action)) {
                 handleSwitch(true);
             } else if (ACTION_ROTATE_INTERNAL.equals(action)) {
-                // 循环切换旋转偏移: 0 -> 90 -> 180 -> 270 -> 0
+                // 循环切换rotation偏移: 0 -> 90 -> 180 -> 270 -> 0
                 currentRotationOffset = (currentRotationOffset + 90) % 360;
                 if (configManager != null) {
                     // 先强制重新加载最新配置，避免用过时的 configData 覆盖文件导致其他设置丢失
@@ -51,7 +51,7 @@ public class NotificationService extends Service {
                 if (nm != null) {
                     nm.notify(NOTIFICATION_ID, buildNotification());
                 }
-                android.util.Log.d("Camswap_NOTIF", "旋转偏移已切换为: " + currentRotationOffset + "°");
+                android.util.Log.d("Camswap_NOTIF", "rotation偏移已切换为: " + currentRotationOffset + "°");
             }
         }
     };
@@ -144,7 +144,7 @@ public class NotificationService extends Service {
     private void handleSwitch(boolean next) {
         boolean changed = ControlActionHelper.switchVideo(this, next);
         if (!changed) {
-            LogUtil.log("【CS】通知栏切换视频未发生变化");
+            LogUtil.log("【CS】通知栏切换video未发生变化");
         }
     }
 

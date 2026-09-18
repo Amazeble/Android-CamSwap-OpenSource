@@ -69,10 +69,10 @@ public class Camera1Handler implements ICameraHandler {
                     if (HookMain.origin_preview_camera != null
                             && HookMain.origin_preview_camera.equals(chain.getThisObject())) {
                         args[0] = HookMain.fake_SurfaceTexture;
-                        LogUtil.log("【CS】发现重复" + HookMain.origin_preview_camera.toString());
+                        LogUtil.log("【CS】Found duplicate" + HookMain.origin_preview_camera.toString());
                         return chain.proceed(args);
                     } else {
-                        LogUtil.log("【CS】创建预览");
+                        LogUtil.log("【CS】Creating preview");
                     }
 
                     HookMain.origin_preview_camera = (Camera) chain.getThisObject();
@@ -86,7 +86,7 @@ public class Camera1Handler implements ICameraHandler {
                     args[0] = HookMain.fake_SurfaceTexture;
                 }
             } catch (Throwable t) {
-                LogUtil.log("【CS】setPreviewTexture before 异常: " + t);
+                LogUtil.log("【CS】setPreviewTexture before exception: " + t);
             }
             return chain.proceed(args);
         });
@@ -99,7 +99,7 @@ public class Camera1Handler implements ICameraHandler {
                 File file = HookGuards.getCurrentVideoFile();
                 if (!HookGuards.shouldBypass(packageName, file)) {
                     HookMain.is_someone_playing = false;
-                    LogUtil.log("【CS】开始预览");
+                    LogUtil.log("【CS】Starting preview");
                     HookMain.start_preview_camera = (Camera) chain.getThisObject();
 
                     try {
@@ -110,14 +110,14 @@ public class Camera1Handler implements ICameraHandler {
                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1) {
                                     HookMain.mSurfacetexture.setDefaultBufferSize(size.width, size.height);
                                 }
-                                LogUtil.log("【CS】修正目标 SurfaceTexture 尺寸为: " + size.width + "x" + size.height);
+                                LogUtil.log("【CS】Correcting target SurfaceTexture size to: " + size.width + "x" + size.height);
                             }
                             if (HookMain.ori_holder != null) {
-                                LogUtil.log("【CS】SurfaceHolder 保持原始尺寸，预览尺寸: " + size.width + "x" + size.height);
+                                LogUtil.log("【CS】SurfaceHolder keeping original size, preview size: " + size.width + "x" + size.height);
                             }
                         }
                     } catch (Exception e) {
-                        LogUtil.log("【CS】修正 Surface 尺寸异常: " + e.getMessage());
+                        LogUtil.log("【CS】Correcting Surface size exception: " + e.getMessage());
                     }
 
                     if (HookMain.ori_holder != null) {
@@ -129,7 +129,7 @@ public class Camera1Handler implements ICameraHandler {
                     }
                 }
             } catch (Throwable t) {
-                LogUtil.log("【CS】startPreview before 异常: " + t);
+                LogUtil.log("【CS】startPreview before exception: " + t);
             }
             return chain.proceed(args);
         });
@@ -172,7 +172,7 @@ public class Camera1Handler implements ICameraHandler {
                 HookMain.mcamera1.setPreviewTexture(HookMain.c1_fake_texture);
                 return null;
             } catch (Throwable t) {
-                LogUtil.log("【CS】setPreviewDisplay before 异常: " + t);
+                LogUtil.log("【CS】setPreviewDisplay before exception: " + t);
                 return chain.proceed(args);
             }
         });
@@ -244,7 +244,7 @@ public class Camera1Handler implements ICameraHandler {
             }
             HookMain.playerManager.mplayer1.prepare();
         } catch (Exception e) {
-            LogUtil.log("【CS】mplayer1 prepare 异常: " + e.toString());
+            LogUtil.log("【CS】mplayer1 prepare exception: " + e.toString());
         }
     }
 
@@ -291,7 +291,7 @@ public class Camera1Handler implements ICameraHandler {
 
         HookMain.playerManager.mMediaPlayer.setOnErrorListener((mp, what, extra) -> {
             String err = LogUtil.explainMediaPlayerError(what, extra);
-            LogUtil.e("【CS】【Camera1】【致命错误】mMediaPlayer 触发错误: " + err, null);
+            LogUtil.e("【CS】【Camera1】[FATAL ERROR]mMediaPlayer triggered error: " + err, null);
             return true;
         });
 
@@ -301,16 +301,16 @@ public class Camera1Handler implements ICameraHandler {
             if (pfd != null) {
                 HookMain.playerManager.bindCamera1Pfd(HookMain.playerManager.mMediaPlayer, pfd);
                 HookMain.playerManager.mMediaPlayer.setDataSource(pfd.getFileDescriptor());
-                LogUtil.log("【CS】【Camera1】mMediaPlayer 使用 PFD 数据源: fd=" + pfd.getFd());
+                LogUtil.log("【CS】【Camera1】mMediaPlayer using PFD data source: fd=" + pfd.getFd());
             } else {
                 HookMain.playerManager.closeCamera1Pfd(HookMain.playerManager.mMediaPlayer);
                 HookMain.playerManager.mMediaPlayer.setDataSource(path);
-                LogUtil.log("【CS】【Camera1】mMediaPlayer 使用本地数据源: " + path);
+                LogUtil.log("【CS】【Camera1】mMediaPlayer using local data source: " + path);
             }
             HookMain.playerManager.mMediaPlayer.prepare();
-            LogUtil.log("【CS】【Camera1】mMediaPlayer 准备就绪，开始播放");
+            LogUtil.log("【CS】【Camera1】mMediaPlayer ready, starting playback");
         } catch (Exception e) {
-            LogUtil.e("【CS】【Camera1】mMediaPlayer prepare 异常: " + e.getMessage(), e);
+            LogUtil.e("【CS】【Camera1】mMediaPlayer prepare exception: " + e.getMessage(), e);
         }
     }
 
@@ -318,7 +318,7 @@ public class Camera1Handler implements ICameraHandler {
         if (!VideoManager.getConfig().getBoolean(ConfigManager.KEY_ENABLE_PHOTO_FAKE, false)) {
             return false;
         }
-        LogUtil.log("【CS】Camera1 takePicture 触发，启动动态防御机制");
+        LogUtil.log("【CS】Camera1 takePicture triggered, activating dynamic defense mechanism");
 
         Camera.PictureCallback jpegCallback = null;
         if (args.length == 3) {
@@ -333,7 +333,7 @@ public class Camera1Handler implements ICameraHandler {
                 try {
                     jpegCallback.onPictureTaken(jpegData, camera);
                 } catch (Exception e) {
-                    LogUtil.log("【CS】Camera1 主动回调 PictureCallback 失败: " + e);
+                    LogUtil.log("【CS】Camera1 actively callback PictureCallback failed: " + e);
                 }
             }
         }
@@ -353,9 +353,9 @@ public class Camera1Handler implements ICameraHandler {
                 java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
                 yuvImage.compressToJpeg(new android.graphics.Rect(0, 0, HookMain.mwidth, HookMain.mhight), 90, out);
                 jpegData = out.toByteArray();
-                LogUtil.log("【CS】Camera1 Photo Fake: 从 NV21 帧回调数据生成 JPEG");
+                LogUtil.log("【CS】Camera1 Photo Fake: Generating JPEG from NV21 frame callback data");
             } catch (Exception e) {
-                LogUtil.log("【CS】Camera1 截帧 JPEG 转换失败: " + e);
+                LogUtil.log("【CS】Camera1 Frame capture JPEG conversion failed: " + e);
             }
         }
 
@@ -382,7 +382,7 @@ public class Camera1Handler implements ICameraHandler {
                 HookMain.mhight = size.height;
             }
         } catch (Exception e) {
-            LogUtil.log("【CS】获取 Camera1 尺寸失败: " + e);
+            LogUtil.log("【CS】Failed to get Camera1 dimensions: " + e);
         }
         if (HookMain.mwidth <= 0) {
             HookMain.mwidth = 640;
@@ -396,7 +396,7 @@ public class Camera1Handler implements ICameraHandler {
         // Stream mode: MediaMetadataRetriever cannot work with URLs.
         // Try GL capture from renderer instead.
         if (VideoManager.isStreamMode()) {
-            LogUtil.log("【CS】Camera1 流模式下跳过 MediaMetadataRetriever，尝试 GL 截帧");
+            LogUtil.log("【CS】Camera1 Skipping MediaMetadataRetriever in stream mode, trying GL frame capture");
             android.graphics.Bitmap glFrame = captureFrameFromGlRenderer();
             if (glFrame != null) {
                 try {
@@ -406,7 +406,7 @@ public class Camera1Handler implements ICameraHandler {
                     glFrame.recycle();
                     return jpegData;
                 } catch (Exception e) {
-                    LogUtil.log("【CS】Camera1 GL 截帧 JPEG 转换失败: " + e);
+                    LogUtil.log("【CS】Camera1 GL Frame capture JPEG conversion failed: " + e);
                 }
             }
             return null;
@@ -437,12 +437,12 @@ public class Camera1Handler implements ICameraHandler {
                 frame.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, bos);
                 byte[] jpegData = bos.toByteArray();
                 frame.recycle();
-                LogUtil.log("【CS】Camera1 Photo Fake: 从视频文件截取帧生成 JPEG ("
+                LogUtil.log("【CS】Camera1 Photo Fake: Generating JPEG by extracting frame from video file ("
                         + HookMain.mwidth + "x" + HookMain.mhight + ")");
                 return jpegData;
             }
         } catch (Exception e) {
-            LogUtil.log("【CS】Camera1 从视频截帧失败: " + e);
+            LogUtil.log("【CS】Camera1 Failed to extract frame from video: " + e);
         }
         return null;
     }
@@ -455,7 +455,7 @@ public class Camera1Handler implements ICameraHandler {
             fallback.compress(android.graphics.Bitmap.CompressFormat.JPEG, 50, bos);
             byte[] jpegData = bos.toByteArray();
             fallback.recycle();
-            LogUtil.log("【CS】Camera1 Photo Fake: 使用纯黑兜底 JPEG");
+            LogUtil.log("【CS】Camera1 Photo Fake: Using pure black fallback JPEG");
             return jpegData;
         } catch (Exception e) {
             return new byte[0];
@@ -483,7 +483,7 @@ public class Camera1Handler implements ICameraHandler {
                 HookMain.mDisplayOrientation = degrees;
                 LogUtil.log("【CS】setDisplayOrientation: " + degrees);
             } catch (Throwable t) {
-                LogUtil.log("【CS】setDisplayOrientation before 异常: " + t);
+                LogUtil.log("【CS】setDisplayOrientation before exception: " + t);
             }
             return chain.proceed(args);
         });
@@ -533,7 +533,7 @@ public class Camera1Handler implements ICameraHandler {
 
     private void hookStopPreview(ClassLoader classLoader) {
         hookCameraMethod(classLoader, "stopPreview", new Class<?>[0], chain -> {
-            LogUtil.log("【CS】Camera1 stopPreview，释放播放器资源");
+            LogUtil.log("【CS】Camera1 stopPreview, releasing player resources");
             HookMain.playerManager.releaseCamera1Resources();
             return chain.proceed(toArgs(chain.getArgs()));
         });
@@ -541,7 +541,7 @@ public class Camera1Handler implements ICameraHandler {
 
     private void hookRelease(ClassLoader classLoader) {
         hookCameraMethod(classLoader, "release", new Class<?>[0], chain -> {
-            LogUtil.log("【CS】Camera1 release，释放播放器资源");
+            LogUtil.log("【CS】Camera1 release, releasing player resources");
             HookMain.playerManager.releaseCamera1Resources();
             HookMain.origin_preview_camera = null;
             HookMain.start_preview_camera = null;
@@ -556,7 +556,7 @@ public class Camera1Handler implements ICameraHandler {
             Method method = resolveMethod(classLoader, methodName, parameterTypes);
             Api101Runtime.requireModule().hook(method).intercept(hooker);
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook Camera." + methodName + " 失败: " + t);
+            LogUtil.log("【CS】Hook Camera." + methodName + " failed: " + t);
         }
     }
 
@@ -599,13 +599,13 @@ public class Camera1Handler implements ICameraHandler {
                         HookMain.mwidth = previewSize != null ? previewSize.width : 640;
                         HookMain.mhight = previewSize != null ? previewSize.height : 480;
                         int frameRate = params != null ? params.getPreviewFrameRate() : 0;
-                        LogUtil.log("【CS】帧预览回调初始化：宽：" + HookMain.mwidth + " 高：" + HookMain.mhight
+                        LogUtil.log("【CS】Frame preview callback initialization: width:" + HookMain.mwidth + " height:" + HookMain.mhight
                                 + " 帧率：" + frameRate);
                         HookMain.need_to_show_toast = !VideoManager.getConfig()
                                 .getBoolean(ConfigManager.KEY_DISABLE_TOAST, false);
                         if (HookMain.toast_content != null && HookMain.need_to_show_toast) {
                             try {
-                                HookMain.showToast("宽: " + HookMain.mwidth + "px  高: " + HookMain.mhight + "px");
+                                HookMain.showToast("宽: " + HookMain.mwidth + "px  height: " + HookMain.mhight + "px");
                             } catch (Exception ee) {
                                 LogUtil.log("【CS】[toast]" + ee.toString());
                             }
@@ -629,12 +629,12 @@ public class Camera1Handler implements ICameraHandler {
                         }
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】onPreviewFrame before 异常: " + t);
+                    LogUtil.log("【CS】onPreviewFrame before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook PreviewCallback.onPreviewFrame 失败: " + t);
+            LogUtil.log("【CS】Failed to hook PreviewCallback.onPreviewFrame: " + t);
         }
     }
 

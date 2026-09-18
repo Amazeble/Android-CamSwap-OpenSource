@@ -45,7 +45,7 @@ public class LineElsaHandler implements ICameraHandler {
     }
 
     /**
-     * 方案 B：拦截 Elsa 引擎的 SurfaceTexture 绑定入口，将虚拟视频纹理挂载至 Elsa 渲染管线。
+     * 方案 B：拦截 Elsa 引擎的 SurfaceTexture 绑定入口，将虚拟video纹理挂载至 Elsa 渲染管线。
      */
     private void hookElsaSurfaceTextureBinding(ClassLoader classLoader) {
         try {
@@ -71,7 +71,7 @@ public class LineElsaHandler implements ICameraHandler {
                 }
             }
         } catch (Throwable t) {
-            LogUtil.log("【CS】【LINE Elsa】挂载 Elsa.k 失败 (可能类名混淆或非活跃类): " + t);
+            LogUtil.log("【CS】【LINE Elsa】挂载 Elsa.k failed (可能类名混淆或非活跃类): " + t);
         }
     }
 
@@ -102,7 +102,7 @@ public class LineElsaHandler implements ICameraHandler {
                 }
             }
         } catch (Throwable t) {
-            LogUtil.log("【CS】【LINE Elsa】挂载 Elsa g$e 失败: " + t);
+            LogUtil.log("【CS】【LINE Elsa】挂载 Elsa g$e failed: " + t);
         }
     }
 
@@ -133,7 +133,7 @@ public class LineElsaHandler implements ICameraHandler {
                 }
             }
         } catch (Throwable t) {
-            LogUtil.log("【CS】【LINE Pay】挂载 CardScanner 失败 (可能当前未加载该模块): " + t);
+            LogUtil.log("【CS】【LINE Pay】挂载 CardScanner failed (可能当前未加载该模块): " + t);
         }
     }
 
@@ -154,7 +154,7 @@ public class LineElsaHandler implements ICameraHandler {
                         Object[] args = HookUtils.toArgs(chain.getArgs());
                         byte[] fakeNv21 = getLatestNv21Data();
                         if (fakeNv21 != null && fakeNv21.length > 0) {
-                            LogUtil.log("【CS】【LINE Elsa】成功劫持 b.v (Image->NV21) 转换，返回虚拟视频帧 (" + fakeNv21.length + " bytes)");
+                            LogUtil.log("【CS】【LINE Elsa】成功劫持 b.v (Image->NV21) 转换，返回虚拟video帧 (" + fakeNv21.length + " bytes)");
                             return fakeNv21;
                         }
                         return chain.proceed(args);
@@ -163,7 +163,7 @@ public class LineElsaHandler implements ICameraHandler {
                 }
             }
         } catch (Throwable t) {
-            LogUtil.log("【CS】【LINE Elsa】挂载 Elsa.b 转换器失败: " + t);
+            LogUtil.log("【CS】【LINE Elsa】挂载 Elsa.b 转换器failed: " + t);
         }
     }
 
@@ -254,9 +254,9 @@ public class LineElsaHandler implements ICameraHandler {
                 vBuf.put(yuv.vPlane, 0, Math.min(vBuf.remaining(), yuv.vPlane.length));
                 vBuf.position(0);
             }
-            LogUtil.log("【CS】【LINE Elsa】成功向 ImageProxy 注入虚拟视频 YUV 帧 (" + yuv.width + "x" + yuv.height + ")");
+            LogUtil.log("【CS】【LINE Elsa】成功向 ImageProxy 注入虚拟video YUV 帧 (" + yuv.width + "x" + yuv.height + ")");
         } catch (Throwable t) {
-            LogUtil.log("【CS】【LINE Elsa】ImageProxy 平面注入失败: " + t);
+            LogUtil.log("【CS】【LINE Elsa】ImageProxy 平面注入failed: " + t);
         }
     }
 

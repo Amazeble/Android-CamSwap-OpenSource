@@ -23,9 +23,9 @@ import java.util.concurrent.TimeUnit;
 import android.graphics.Bitmap;
 
 /**
- * OpenGL ES 旋转渲染器。
- * 在 MediaPlayer 输出和目标 Surface 之间插入 GL 旋转层，
- * 实现 GPU 加速的实时画面旋转。
+ * OpenGL ES rotation渲染器。
+ * 在 MediaPlayer 输出和目标 Surface 之间插入 GL rotation层，
+ * 实现 GPU 加速的实时画面rotation。
  *
  * 使用流程：
  * 1. new GLVideoRenderer(targetSurface, tag)
@@ -86,7 +86,7 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
     // Shader sources, vertices, and tex coords shared via GLHelper
 
     /**
-     * 创建 GL 旋转渲染器。
+     * 创建 GL rotation渲染器。
      *
      * @param targetSurface 渲染目标 Surface（预览或 ImageReader 的 Surface）
      * @param tag           日志标识
@@ -107,10 +107,10 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
                 initEGL(targetSurface);
                 initGL();
                 mInitialized = true;
-                LogUtil.log("【CS】【GL】[" + mTag + "] 渲染管线初始化成功！(EGL Surface 尺寸: "
+                LogUtil.log("【CS】【GL】[" + mTag + "] 渲染管线初始化成功！(EGL Surface size: "
                         + mSurfaceWidth + "x" + mSurfaceHeight + ", InputSurface: " + mInputSurface + ")");
             } catch (Exception e) {
-                LogUtil.e("【CS】【GL】【致命错误】[" + mTag + "] 初始化失败: " + e.getMessage(), e);
+                LogUtil.e("【CS】【GL】[FATAL ERROR][" + mTag + "] 初始化failed: " + e.getMessage(), e);
                 mInitialized = false;
             }
             latch.countDown();
@@ -145,7 +145,7 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
     }
 
     /**
-     * 设置旋转角度（0/90/180/270），实时生效。
+     * 设置rotation angle度（0/90/180/270），实时生效。
      */
     public void setRotation(int degrees) {
         mRotationDegrees = ((degrees % 360) + 360) % 360;
@@ -167,7 +167,7 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
             return;
         // Bail out if the target surface has been destroyed to avoid native crash
         if (mTargetSurface != null && !mTargetSurface.isValid()) {
-            LogUtil.w("【CS】【GL】[" + mTag + "] 目标 TargetSurface 已失效 (isValid=false)，停止 GPU 渲染");
+            LogUtil.w("【CS】【GL】[" + mTag + "] target TargetSurface is invalid (isValid=false), stopping GPU rendering");
             mReleased = true;
             return;
         }
@@ -183,7 +183,7 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
             if (!EGL14.eglSwapBuffers(mEGLDisplay, mEGLSurface)) {
                 int err = EGL14.eglGetError();
                 String errExplanation = LogUtil.explainEglError(err);
-                LogUtil.e("【CS】【GL】[" + mTag + "] eglSwapBuffers 提交帧缓冲失败: "
+                LogUtil.e("【CS】【GL】[" + mTag + "] eglSwapBuffers 提交帧缓冲failed: "
                         + errExplanation + " (errCode=" + err + ")", null);
                 if (err == EGL14.EGL_BAD_SURFACE || err == EGL14.EGL_BAD_NATIVE_WINDOW) {
                     mReleased = true;
@@ -262,23 +262,23 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
 
         mFrameCount++;
         if (mFrameCount % 60 == 1) {
-            LogUtil.log("【CS】【GLRenderer】视频渲染工作中: Tag=" + mTag + " | 尺寸=" + mSurfaceWidth + "x" + mSurfaceHeight + " | 旋转=" + mRotationDegrees + "° | 反光强度=" + String.format("%.2f", ambientIntensity) + " | 累计已渲染帧=" + mFrameCount);
+            LogUtil.log("【CS】【GLRenderer】video渲染工作中: Tag=" + mTag + " | size=" + mSurfaceWidth + "x" + mSurfaceHeight + " | rotation=" + mRotationDegrees + "° | reflection intensity=" + String.format("%.2f", ambientIntensity) + " | cumulative rendered frames=" + mFrameCount);
         }
     }
 
     /**
-     * 截取当前渲染帧为 Bitmap（使用渲染器当前旋转角度）。
+     * 截取当前渲染帧为 Bitmap（使用渲染器当前rotation angle度）。
      */
     public Bitmap captureFrame(int width, int height) {
         return captureFrameWithRotation(width, height, -1);
     }
 
     /**
-     * 截取当前帧并应用指定旋转角度（不影响预览 Surface）。
-     * 用于 WhatsApp YUV 帧生成：预览渲染器旋转为 0°（本机自拍正确），
+     * 截取当前帧并应用指定rotation angle度（不影响预览 Surface）。
+     * 用于 WhatsApp YUV 帧生成：预览渲染器rotation为 0°（本机自拍正确），
      * 但 YUV 截帧需要应用 video_rotation_offset 才能让对方看到正确方向。
      *
-     * @param rotationDegrees 要应用的旋转角度，-1 表示使用渲染器当前旋转
+     * @param rotationDegrees 要应用的rotation angle度，-1 表示使用渲染器当前rotation
      */
     public Bitmap captureFrameWithRotation(int width, int height, int rotationDegrees) {
         if (!isInitialized() || mReleased)
@@ -295,7 +295,7 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
                 // 渲染到后缓冲（不 swap，不影响预览显示）
                 renderToBackBuffer();
 
-                // 立即恢复旋转
+                // 立即恢复rotation
                 mRotationDegrees = savedRotation;
 
                 int bufSize = width * height * 4;
@@ -320,7 +320,7 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
                 // 不 swap — 不影响预览 Surface 的显示内容
             } catch (Exception e) {
                 mRotationDegrees = savedRotation;
-                LogUtil.log("【CS】【GL】captureFrame 失败: " + e);
+                LogUtil.log("【CS】【GL】captureFrame failed: " + e);
             }
             latch.countDown();
         });
@@ -389,7 +389,7 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
         mSurfaceHeight = height[0];
         LogUtil.log("【CS】【GL】EGL Surface dimensions initialized: " + width[0] + "x" + height[0]);
 
-        // 如果 EGL Surface 尺寸太小（例如 SurfaceHolder buffer 尚未分配），视为初始化失败
+        // 如果 EGL Surface size太小（例如 SurfaceHolder buffer 尚未分配），视为初始化failed
         if (width[0] <= 1 && height[0] <= 1) {
             throw new RuntimeException(
                     "EGL Surface too small (" + width[0] + "x" + height[0] + "), skipping GL renderer");
@@ -511,11 +511,11 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
     // ---- Static helpers for managing multiple renderers ----
 
     /**
-     * 安全创建渲染器，失败时返回 null 而非抛异常。
+     * 安全创建渲染器，failed时returned null 而非抛异常。
      */
     public static GLVideoRenderer createSafely(Surface targetSurface, String tag) {
         if (targetSurface == null || !targetSurface.isValid()) {
-            LogUtil.log("【CS】【GL】" + tag + " 目标 Surface 无效，跳过创建");
+            LogUtil.log("【CS】【GL】" + tag + " target Surface invalid, skipping creation");
             return null;
         }
         try {
@@ -524,7 +524,7 @@ public class GLVideoRenderer implements SurfaceTexture.OnFrameAvailableListener 
                 return renderer;
             } else {
                 renderer.release();
-                LogUtil.log("【CS】【GL】" + tag + " 初始化失败，回退到直接播放");
+                LogUtil.log("【CS】【GL】" + tag + " 初始化failed，回退到直接播放");
                 return null;
             }
         } catch (Exception e) {

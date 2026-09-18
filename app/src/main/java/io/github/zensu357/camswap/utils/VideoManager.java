@@ -96,7 +96,7 @@ public class VideoManager {
             try {
                 return ParcelFileDescriptor.open(privateFile, ParcelFileDescriptor.MODE_READ_ONLY);
             } catch (Exception e) {
-                log("【CS】[Private] 打开私有视频 Fd 失败: " + e);
+                log("【CS】[Private] Failed to open private video Fd: " + e);
             }
         }
 
@@ -111,13 +111,13 @@ public class VideoManager {
                 }
                 return pfd;
             } else {
-                log("【CS】getVideoPFD: ContentProvider 返回 null");
+                log("【CS】getVideoPFD: ContentProvider returned null");
             }
         } catch (Exception e) {
             long now = android.os.SystemClock.elapsedRealtime();
             if (now - lastPfdFailLogMs >= 5000L) {
                 lastPfdFailLogMs = now;
-                log("【CS】getVideoPFD 失败: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+                log("【CS】getVideoPFD failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
             }
         }
 
@@ -143,11 +143,11 @@ public class VideoManager {
         try {
             long size = pfd.getStatSize();
             if (privateFile.exists() && privateFile.length() == size) {
-                log("【CS】[Private] 文件大小一致，跳过拷贝 (" + size + " bytes)");
+                log("【CS】[Private] file size consistent, skipping copy (" + size + " bytes)");
                 return;
             }
 
-            log("【CS】[Private] 开始拷贝视频到私有目录 (" + size + " bytes)...");
+            log("【CS】[Private] Starting to copy video to private directory (" + size + " bytes)...");
             try (java.io.FileInputStream fis = new java.io.FileInputStream(pfd.getFileDescriptor());
                     java.io.FileOutputStream fos = new java.io.FileOutputStream(privateFile)) {
                 byte[] buf = new byte[8192];
@@ -156,9 +156,9 @@ public class VideoManager {
                     fos.write(buf, 0, len);
                 }
             }
-            log("【CS】[Private] 视频拷贝完成 (" + size + " bytes)");
+            log("【CS】[Private] Video copy complete (" + size + " bytes)");
         } catch (Exception e) {
-            log("【CS】[Private] 视频拷贝失败: " + e);
+            log("【CS】[Private] Video copy failed: " + e);
         }
     }
 
@@ -177,14 +177,14 @@ public class VideoManager {
             }
             return pfd;
         } catch (Exception e) {
-            log("【CS】getAudioPFD 失败: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            log("【CS】getAudioPFD failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
         return null;
     }
 
     /**
      * 将音频文件从 Provider 拷贝到 app 私有目录。
-     * @return 拷贝后的私有目录音频文件路径，失败返回 null
+     * @return 拷贝后的私有目录音频文件路径，failedreturned null
      */
     public static String copyAudioToPrivateDir() {
         if (toast_content == null) return null;
@@ -192,7 +192,7 @@ public class VideoManager {
         String selectedAudio = getConfig().getString(
                 ConfigManager.KEY_SELECTED_AUDIO, null);
         if (selectedAudio == null || selectedAudio.isEmpty()) {
-            log("【CS】[Private] 无选中音频文件，跳过音频拷贝");
+            log("【CS】[Private] no selected audio file, skipping audio copy");
             return null;
         }
 
@@ -209,11 +209,11 @@ public class VideoManager {
 
             long size = pfd.getStatSize();
             if (privateAudio.exists() && privateAudio.length() == size) {
-                log("【CS】[Private] 音频文件大小一致，跳过拷贝 (" + size + " bytes)");
+                log("【CS】[Private] 音频file size consistent, skipping copy (" + size + " bytes)");
                 return privateAudio.getAbsolutePath();
             }
 
-            log("【CS】[Private] 开始拷贝音频到私有目录 (" + size + " bytes)...");
+            log("【CS】[Private] starting to copy audio to private directory (" + size + " bytes)...");
             java.io.FileInputStream fis = new java.io.FileInputStream(pfd.getFileDescriptor());
             java.io.FileOutputStream fos = new java.io.FileOutputStream(privateAudio);
 
@@ -227,7 +227,7 @@ public class VideoManager {
             log("【CS】[Private] 音频拷贝完成 (" + size + " bytes)");
             return privateAudio.getAbsolutePath();
         } catch (Exception e) {
-            log("【CS】[Private] 音频拷贝失败: " + e);
+            log("【CS】[Private] 音频拷贝failed: " + e);
             return null;
         } finally {
             if (pfd != null) {
@@ -305,7 +305,7 @@ public class VideoManager {
                 if (privateFile.exists()) {
                     current_video_path = privateFile.getAbsolutePath();
                     providerBackedVideo.set(false);
-                    log("【CS】[Private] 使用私有目录视频: " + current_video_path);
+                    log("【CS】[Private] Using private directory video: " + current_video_path);
                     return;
                 }
             }
@@ -333,12 +333,12 @@ public class VideoManager {
 
             File camFile = new File(video_path, CAM_VIDEO_NAME);
 
-            // 1. 随机播放模式：随机选择一个视频文件名存入配置（不再重命名文件）
+            // 1. Random play mode: randomly select a video filename to store in config (no longer renaming files)
             if (config.getBoolean(ConfigManager.KEY_ENABLE_RANDOM_PLAY, false)) {
                 if (forceRandom) {
                     pickRandomVideoToConfig(config);
                 }
-                // 使用配置中选中的视频
+                // Using selected video from config
                 String randomSelected = config.getString(ConfigManager.KEY_SELECTED_VIDEO, null);
                 if (randomSelected != null) {
                     File randomFile = new File(video_path, randomSelected);
@@ -348,31 +348,31 @@ public class VideoManager {
                         return;
                     }
                 }
-                // 降级：尝试 Cam.mp4，再尝试目录中任意视频
+                // Fallback: try Cam.mp4, then try any video in directory
                 current_video_path = findFallbackVideo(camFile);
                 return;
             }
 
-            // 2. 普通模式：优先使用配置中选中的视频
+            // 2. 普通模式：优先Using selected video from config
             String selectedName = config.getString(ConfigManager.KEY_SELECTED_VIDEO, null);
             if (selectedName != null && !selectedName.isEmpty()) {
                 File selectedFile = new File(video_path, selectedName);
                 if (selectedFile.exists()) {
                     current_video_path = selectedFile.getAbsolutePath();
-                    log("【CS】[Video] 使用配置路径: " + current_video_path);
+                    log("【CS】[Video] using config path: " + current_video_path);
                     return;
                 }
-                log("【CS】[Video] 配置的视频不存在: " + selectedName);
+                log("【CS】[Video] Configured video does not exist: " + selectedName);
             }
 
-            // 3. 降级：Cam.mp4 → 目录中任意视频
+            // 3. Fallback: Cam.mp4 → any video in directory
             current_video_path = findFallbackVideo(camFile);
         }
     }
 
     /**
-     * 降级查找视频：先尝试 Cam.mp4，再扫描目录中任意视频文件。
-     * 确保只要目录中有视频就能找到。
+     * Fallback video search: first try Cam.mp4, then scan any video file in directory.
+     * Ensure that as long as there is video in directory it can be found.
      */
     private static String findFallbackVideo(File camFile) {
         // 尝试 Cam.mp4
@@ -381,34 +381,34 @@ public class VideoManager {
             return camFile.getAbsolutePath();
         }
 
-        // 扫描目录中任意视频
+        // Scanning any video in directory
         File[] files = listVideoFiles(new File(video_path));
         if (files != null && files.length > 0 && files[0].canRead()) {
-            log("【CS】[Video] 自动选择目录中的视频: " + files[0].getName());
+            log("【CS】[Video] Auto-selecting video in directory: " + files[0].getName());
             return files[0].getAbsolutePath();
         }
 
-        // 检查应用私有缓存视频
+        // Checking app private cached video
         if (toast_content != null) {
             File privateFile = new File(toast_content.getFilesDir(), "vcam_private.mp4");
             if (privateFile.exists() && privateFile.length() > 0) {
-                log("【CS】[Video] 使用私有缓存视频: " + privateFile.getAbsolutePath());
+                log("【CS】[Video] Using private cached video: " + privateFile.getAbsolutePath());
                 return privateFile.getAbsolutePath();
             }
         }
 
-        // 无可用视频，仍返回 Cam.mp4 路径（后续解码器会处理文件不存在的情况）
-        log("【CS】[Video] 警告：目录中无可用视频文件或无读取权限，等待 Provider/Binder 投递...");
+        // 无可用video，仍返回 Cam.mp4 路径（后续解码器会处理文件不存在的情况）
+        log("【CS】[Video] Warning: No available video files in directory or no read permission, waiting for Provider/Binder delivery...");
         return camFile.getAbsolutePath();
     }
 
     /**
-     * 随机选择视频文件名并存入配置（不再重命名文件）
+     * Randomly select video filename and store in config (no longer renaming files)
      */
     private static void pickRandomVideoToConfig(ConfigManager config) {
         File dir = new File(video_path);
         if (!dir.exists() || !dir.isDirectory()) {
-            log("【CS】[Random] 视频目录不存在");
+            log("【CS】[Random] Video directory does not exist");
             return;
         }
 
@@ -420,7 +420,7 @@ public class VideoManager {
             config.setString(ConfigManager.KEY_SELECTED_VIDEO, selectedFile.getName());
             log("【CS】[Random] 选择了: " + selectedFile.getName());
         } else {
-            log("【CS】[Random] 无可用视频文件");
+            log("【CS】[Random] No available video files");
         }
     }
 
@@ -457,7 +457,7 @@ public class VideoManager {
 
         if (providerAvailable) {
             log("【CS】Provider call failed but provider is available. Skipping fallback.");
-            showToast("Provider调用失败，无法切换视频");
+            showToast("Provider调用failed，无法切换video");
             return false;
         }
 
@@ -494,8 +494,8 @@ public class VideoManager {
     }
 
     /**
-     * 执行视频选择逻辑：
-     * 仅更新配置中的选中视频名称和当前路径（不再重命名文件）
+     * Execute video selection logic：
+     * 仅更新配置中的选中videoname和current path（不再重命名文件）
      */
     public static boolean performVideoSelection(String targetFileName) {
         synchronized (pathLock) {
@@ -558,7 +558,7 @@ public class VideoManager {
 
             // Stream URL is empty — fall back to local if enabled
             if (localFallback) {
-                log("【CS】流地址为空，回退到本地视频");
+                log("【CS】Stream address empty, falling back to local video");
                 return buildLocalDescriptor();
             }
 

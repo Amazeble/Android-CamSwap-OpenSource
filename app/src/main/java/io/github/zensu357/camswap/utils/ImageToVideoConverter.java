@@ -16,7 +16,7 @@ import java.io.File;
 import java.nio.ByteBuffer;
 
 /**
- * 将图片转换为短循环 MP4 视频。
+ * 将图片转换为短循环 MP4 video。
  * 使用 ByteBuffer 输入模式（COLOR_FormatYUV420Flexible），
  * 不依赖 OpenGL ES，兼容所有设备。
  */
@@ -30,22 +30,22 @@ public class ImageToVideoConverter {
     private static final int TIMEOUT_USEC = 30000;
 
     /**
-     * 将图片转换为 MP4 视频文件。
+     * 将图片转换为 MP4 video文件。
      *
      * @param imagePath 原始图片路径
-     * @param outputDir 视频输出目录
-     * @return 生成的 MP4 文件，失败返回 null
+     * @param outputDir video输出目录
+     * @return 生成的 MP4 文件，failedreturned null
      */
     public static File convert(String imagePath, File outputDir) {
         LogUtil.log("【CS】【Converter】开始转换: " + imagePath);
 
         Bitmap originalBitmap = BitmapFactory.decodeFile(imagePath);
         if (originalBitmap == null) {
-            LogUtil.log("【CS】【Converter】无法解码图片: " + imagePath);
+            LogUtil.log("【CS】【Converter】Cannot decode image: " + imagePath);
             return null;
         }
 
-        // 对齐宽高到偶数（编码器要求）
+        // 对齐宽height到偶数（编码器要求）
         int width = originalBitmap.getWidth();
         int height = originalBitmap.getHeight();
 
@@ -67,7 +67,7 @@ public class ImageToVideoConverter {
         if (height < 2)
             height = 2;
 
-        LogUtil.log("【CS】【Converter】输出尺寸: " + width + "x" + height);
+        LogUtil.log("【CS】【Converter】输出size: " + width + "x" + height);
 
         // Scale bitmap if needed
         Bitmap bitmap;
@@ -95,16 +95,16 @@ public class ImageToVideoConverter {
             outputFile = new File(outputDir, "img_" + nameNoExt + "_" + System.currentTimeMillis() + ".mp4");
         }
 
-        LogUtil.log("【CS】【Converter】输出文件: " + outputFile.getAbsolutePath());
+        LogUtil.log("【CS】【Converter】Output file: " + outputFile.getAbsolutePath());
 
         // Convert bitmap pixels to NV12 (YUV420SP) format
         byte[] yuvData = bitmapToNV12(bitmap, width, height);
         if (yuvData == null) {
-            LogUtil.log("【CS】【Converter】NV12转换失败");
+            LogUtil.log("【CS】【Converter】NV12转换failed");
             bitmap.recycle();
             return null;
         }
-        LogUtil.log("【CS】【Converter】NV12数据大小: " + yuvData.length);
+        LogUtil.log("【CS】【Converter】NV12数据size: " + yuvData.length);
 
         MediaCodec encoder = null;
         MediaMuxer muxer = null;
@@ -120,7 +120,7 @@ public class ImageToVideoConverter {
                 if (codecInfo != null) {
                     colorFormat = selectColorFormat(codecInfo, MIME_TYPE);
                 }
-                LogUtil.log("【CS】【Converter】使用编码器: " + codecName + ", colorFormat=" + colorFormat);
+                LogUtil.log("【CS】【Converter】Using encoder: " + codecName + ", colorFormat=" + colorFormat);
             }
 
             MediaFormat format = MediaFormat.createVideoFormat(MIME_TYPE, width, height);
@@ -141,7 +141,7 @@ public class ImageToVideoConverter {
 
             doEncode(encoder, muxer, yuvData, width, height);
 
-            LogUtil.log("【CS】【Converter】转换成功! 文件大小: " + outputFile.length() + " bytes");
+            LogUtil.log("【CS】【Converter】转换成功! 文件size: " + outputFile.length() + " bytes");
 
             // Set world-readable so the hook process (inside target app) can read
             // the file via direct path when ContentProvider is unavailable.
@@ -151,11 +151,11 @@ public class ImageToVideoConverter {
                 // Also try chmod via runtime for older devices
                 Runtime.getRuntime().exec(new String[] { "chmod", "644", outputFile.getAbsolutePath() });
             } catch (Exception ignored) {
-                LogUtil.log("【CS】【Converter】chmod 失败，可能影响跨进程读取");
+                LogUtil.log("【CS】【Converter】chmod failed，可能影响跨进程读取");
             }
 
             if (outputFile.length() == 0) {
-                LogUtil.log("【CS】【Converter】错误: 输出文件为空!");
+                LogUtil.log("【CS】【Converter】错误: Output file为空!");
                 outputFile.delete();
                 return null;
             }
@@ -163,7 +163,7 @@ public class ImageToVideoConverter {
             return outputFile;
 
         } catch (Exception e) {
-            LogUtil.log("【CS】【Converter】转换失败: " + e.getMessage());
+            LogUtil.log("【CS】【Converter】转换failed: " + e.getMessage());
             e.printStackTrace();
             if (outputFile.exists())
                 outputFile.delete();

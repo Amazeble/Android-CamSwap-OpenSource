@@ -89,7 +89,7 @@ public class SurfaceRelay implements SurfaceTexture.OnFrameAvailableListener {
                 mInitialized = true;
                 LogUtil.log("【CS】【Relay】" + mTag + " 初始化成功，提供中间 Surface");
             } catch (Exception e) {
-                LogUtil.log("【CS】【Relay】" + mTag + " 初始化失败: " + e);
+                LogUtil.log("【CS】【Relay】" + mTag + " 初始化failed: " + e);
                 mInitialized = false;
             }
             latch.countDown();
@@ -148,7 +148,7 @@ public class SurfaceRelay implements SurfaceTexture.OnFrameAvailableListener {
                         LogUtil.log("【CS】【Relay】" + mTag + " late eglCreateWindowSurface 成功！");
                     } else {
                         int err = EGL14.eglGetError();
-                        // LogUtil.log("【CS】【Relay】" + mTag + " eglCreateWindowSurface(late) 失败: " +
+                        // LogUtil.log("【CS】【Relay】" + mTag + " eglCreateWindowSurface(late) failed: " +
                         // err);
                         // Keep using PBuffer... No output to target though
                     }

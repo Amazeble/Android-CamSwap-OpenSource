@@ -40,12 +40,12 @@ public final class ConfigWatcher {
         if (configObserver != null)
             return; // already initialized
 
-        LogUtil.log("【CS】初始化配置监听");
+        LogUtil.log("【CS】initializing config listener");
         configObserver = new android.database.ContentObserver(new Handler(Looper.getMainLooper())) {
             @Override
             public void onChange(boolean selfChange) {
                 super.onChange(selfChange);
-                LogUtil.log("【CS】Provider 配置变更");
+                LogUtil.log("【CS】Provider config change");
                 VideoManager.getConfig().forceReload();
                 VideoManager.updateVideoPath(false);
                 callback.onMediaSourceChanged();
@@ -57,7 +57,7 @@ public final class ConfigWatcher {
             context.getContentResolver().registerContentObserver(IpcContract.URI_CONFIG, true, configObserver);
             observerRegistered = true;
         } catch (Exception e) {
-            LogUtil.log("【CS】注册 ContentObserver 失败: " + e);
+            LogUtil.log("【CS】注册 ContentObserver failed: " + e);
         }
 
         // Fallback: FileObserver when Provider unavailable
@@ -70,7 +70,7 @@ public final class ConfigWatcher {
                     @Override
                     public void onEvent(int event, String path) {
                         if (path != null && path.endsWith(".json")) {
-                            LogUtil.log("【CS】文件变更: " + path);
+                            LogUtil.log("【CS】file change: " + path);
                             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                 VideoManager.getConfig().forceReload();
                                 VideoManager.updateVideoPath(false);
@@ -82,7 +82,7 @@ public final class ConfigWatcher {
                 configFileObserver.startWatching();
                 LogUtil.log("【CS】FileObserver 已启动: " + configDir);
             } catch (Exception e) {
-                LogUtil.log("【CS】FileObserver 启动失败: " + e);
+                LogUtil.log("【CS】FileObserver 启动failed: " + e);
             }
 
             // Active Config Request via broadcast
@@ -114,7 +114,7 @@ public final class ConfigWatcher {
             }
             LogUtil.log("【CS】广播接收器已注册 (RECEIVER_EXPORTED)");
         } catch (Exception e) {
-            LogUtil.log("【CS】注册广播接收器失败: " + e);
+            LogUtil.log("【CS】注册广播接收器failed: " + e);
         }
     }
 
@@ -163,7 +163,7 @@ public final class ConfigWatcher {
             callback.onMediaSourceChanged();
             LogUtil.log("【CS】配置更新: 媒体源变化，重启播放器");
         } else if (oldRotation != newRotation) {
-            LogUtil.log("【CS】配置更新: 旋转 " + newRotation + "°");
+            LogUtil.log("【CS】配置更新: rotation " + newRotation + "°");
             callback.onRotationChanged(newRotation);
         } else {
             LogUtil.log("【CS】配置更新: 无变化");
@@ -189,7 +189,7 @@ public final class ConfigWatcher {
             if (hasFd != 0) {
                 android.os.ParcelFileDescriptor pfd = android.os.ParcelFileDescriptor.CREATOR.createFromParcel(reply);
                 if (pfd != null) {
-                    LogUtil.log("【CS】Binder 视频 FD 已获取，拷贝到私有目录");
+                    LogUtil.log("【CS】Binder video FD acquired, copying to private directory");
                     VideoManager.copyToPrivateDir(pfd);
                     pfd.close();
                 } else {
@@ -197,7 +197,7 @@ public final class ConfigWatcher {
                 }
             }
         } catch (Exception e) {
-            LogUtil.log("【CS】Binder 获取 FD 失败: " + e);
+            LogUtil.log("【CS】Binder 获取 FD failed: " + e);
         } finally {
             data.recycle();
             reply.recycle();

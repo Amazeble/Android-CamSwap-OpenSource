@@ -141,7 +141,7 @@ public final class MediaPlayerManager {
             c2_relay_1 = rr[0];
             lastC2PreviewSurface1 = previewSurface1;
         }
-        LogUtil.log("【CS】Camera2处理过程完全执行（本地模式）");
+        LogUtil.log("【CS】Camera2processing completed (local mode)");
     }
 
     private void initCamera2PlayersStream(Surface readerSurface, Surface readerSurface1,
@@ -150,12 +150,12 @@ public final class MediaPlayerManager {
         // Release any old stream backend
         releaseStreamBackend();
 
-        // 所有渲染器旋转为 0°，rotation_offset 仅通过 captureFrameForYuv 应用于 YUV 截帧
+        // 所有渲染器rotation为 0°，rotation_offset 仅通过 captureFrameForYuv 应用于 YUV 截帧
 
         // Choose primary surface: prefer preview, fallback to reader
         Surface primaryTarget = previewSurface != null ? previewSurface : readerSurface;
         if (primaryTarget == null) {
-            LogUtil.log("【CS】流模式：无可用目标 Surface");
+            LogUtil.log("【CS】Stream mode: no available target Surface");
             return;
         }
 
@@ -198,13 +198,13 @@ public final class MediaPlayerManager {
             streamBackend.setListener(new SurfacePlayerBackend.Listener() {
                 @Override
                 public void onReady() {
-                    LogUtil.log("【CS】流播放器就绪");
+                    LogUtil.log("【CS】stream player ready");
                     lastCamera2PlaybackStartRealtimeMs = SystemClock.elapsedRealtime();
                 }
 
                 @Override
                 public void onError(String message, Throwable cause) {
-                    LogUtil.log("【CS】流播放器错误: " + message
+                    LogUtil.log("【CS】stream player error: " + message
                             + (cause != null ? " " + cause : ""));
                 }
 
@@ -220,13 +220,13 @@ public final class MediaPlayerManager {
 
                 @Override
                 public void onCompletion() {
-                    LogUtil.log("【CS】流播放完成");
+                    LogUtil.log("【CS】stream playback complete");
                 }
             });
             streamBackend.open(source);
             LogUtil.log("【CS】Camera2处理过程完全执行（流模式: " + source.streamUrl + "）");
         } catch (Exception e) {
-            LogUtil.log("【CS】流模式初始化失败: " + android.util.Log.getStackTraceString(e));
+            LogUtil.log("【CS】流模式初始化failed: " + android.util.Log.getStackTraceString(e));
         }
     }
 
@@ -382,16 +382,16 @@ public final class MediaPlayerManager {
             player.prepare();
             player.start();
         } catch (Exception e) {
-            LogUtil.log("【CS】重启 " + tag + " 失败: " + android.util.Log.getStackTraceString(e));
+            LogUtil.log("【CS】重启 " + tag + " failed: " + android.util.Log.getStackTraceString(e));
         }
     }
 
     /**
-     * 旋转偏移已更新的通知。渲染器保持 0° 旋转（应用自行处理预览旋转），
+     * rotation偏移已更新的通知。渲染器保持 0° rotation（应用自行处理预览rotation），
      * rotation_offset 仅在 captureFrameForYuv 中应用于 YUV 截帧/JPEG。
      */
     void updateRotation(int degrees) {
-        LogUtil.log("【CS】旋转偏移已更新: " + degrees + "°（渲染器保持0°，仅影响截帧）");
+        LogUtil.log("【CS】rotation偏移已更新: " + degrees + "°（渲染器保持0°，仅影响截帧）");
     }
 
     /** Release all GL renderers. */
@@ -465,14 +465,14 @@ public final class MediaPlayerManager {
     private void setupMediaPlayer(MediaPlayer player, GLVideoRenderer[] rendererRef,
             SurfaceRelay[] relayRef, Surface targetSurface, String tag, boolean playSound) {
         if (targetSurface == null) {
-            LogUtil.w("【CS】【播放器】[" + tag + "] 目标 Surface 为 null，跳过初始化");
+            LogUtil.w("【CS】【播放器】[" + tag + "] target Surface is null, skipping initialization");
             return;
         }
         boolean isSurfaceValid = targetSurface.isValid();
-        LogUtil.log("【CS】【播放器】[" + tag + "] 开始配置 MediaPlayer -> TargetSurface: "
+        LogUtil.log("【CS】【播放器】[" + tag + "] starting to configure MediaPlayer -> TargetSurface: "
                 + targetSurface + " (isValid=" + isSurfaceValid + ")");
         if (!isSurfaceValid) {
-            LogUtil.w("【CS】【播放器】【警告】[" + tag + "] 目标 Surface 已失效 (isValid=false)，可能会导致渲染黑屏或失败！");
+            LogUtil.w("【CS】【播放器】[WARNING][" + tag + "] 目标 Surface 已失效 (isValid=false)，可能会导致渲染黑屏或failed！");
         }
 
         GLVideoRenderer.releaseSafely(rendererRef[0]);
@@ -484,26 +484,26 @@ public final class MediaPlayerManager {
             player.setVolume(0, 0);
         player.setLooping(true);
         try {
-            // 预览渲染器旋转固定为 0°：应用（如 WhatsApp、LINE）会对预览自行应用相机传感器旋转，
-            // CamSwap 不应再叠加旋转，否则本机画面会被双重旋转。
+            // 预览渲染器rotation固定为 0°：应用（如 WhatsApp、LINE）会对预览自行应用相机传感器rotation，
+            // CamSwap 不应再叠加rotation，否则本机画面会被双重rotation。
             // video_rotation_offset 仅在 YUV 截帧时通过 captureFrameForYuv 应用，确保对方画面正确。
             int rotation = VideoManager.getConfig().getInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, 0);
             rendererRef[0] = GLVideoRenderer.createSafely(targetSurface, tag);
             if (rendererRef[0] != null) {
                 player.setSurface(rendererRef[0].getInputSurface());
                 rendererRef[0].setRotation(rotation);
-                LogUtil.log("【CS】【GL】[" + tag + "] 成功挂载 GL 渲染器 (旋转:" + rotation + "°, InputSurface: "
+                LogUtil.log("【CS】【GL】[" + tag + "] 成功挂载 GL 渲染器 (rotation:" + rotation + "°, InputSurface: "
                         + rendererRef[0].getInputSurface() + ")");
             } else {
-                LogUtil.w("【CS】【Relay】[" + tag + "] GL 渲染器创建失败，尝试回退到 SurfaceTexture 中继");
+                LogUtil.w("【CS】【Relay】[" + tag + "] GL 渲染器创建failed，尝试回退到 SurfaceTexture 中继");
                 relayRef[0] = SurfaceRelay.createSafely(targetSurface, tag);
                 if (relayRef[0] != null) {
                     player.setSurface(relayRef[0].getInputSurface());
                     relayRef[0].setRotation(rotation);
-                    LogUtil.log("【CS】【Relay】[" + tag + "] 挂载 Relay 渲染器成功 (旋转:" + rotation + "°)");
+                    LogUtil.log("【CS】【Relay】[" + tag + "] 挂载 Relay 渲染器成功 (rotation:" + rotation + "°)");
                 } else {
                     player.setSurface(targetSurface);
-                    LogUtil.w("【CS】【播放器】[" + tag + "] 回退到直接绑定 TargetSurface（无 GL/Relay 加速）");
+                    LogUtil.w("【CS】【播放器】[" + tag + "] falling back to direct TargetSurface binding (no GL/Relay acceleration)");
                 }
             }
 
@@ -512,28 +512,28 @@ public final class MediaPlayerManager {
             if (pfd != null) {
                 bindPfd(player, pfd);
                 player.setDataSource(pfd.getFileDescriptor());
-                LogUtil.log("【CS】【播放器】[" + tag + "] 使用 ContentProvider PFD 数据源: fd="
+                LogUtil.log("【CS】【播放器】[" + tag + "] using ContentProvider PFD data source: fd="
                         + pfd.getFd() + " (路径=" + currentPath + ")");
             } else {
                 closePfd(player);
                 player.setDataSource(currentPath);
-                LogUtil.log("【CS】【播放器】[" + tag + "] 使用本地直接文件数据源: " + currentPath);
+                LogUtil.log("【CS】【播放器】[" + tag + "] using local direct file data source: " + currentPath);
             }
 
             player.setOnErrorListener((mp, what, extra) -> {
                 String diagnosis = LogUtil.explainMediaPlayerError(what, extra);
-                LogUtil.e("【CS】【播放器】【致命错误】[" + tag + "] MediaPlayer 触发错误 -> "
+                LogUtil.e("【CS】【播放器】[FATAL ERROR][" + tag + "] MediaPlayer triggered error -> "
                         + diagnosis + " (what=" + what + ", extra=" + extra + ")", null);
                 return true;
             });
 
             player.setOnInfoListener((mp, what, extra) -> {
                 if (what == android.media.MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
-                    LogUtil.log("【CS】【播放器】[" + tag + "] 接收到首帧渲染就绪信号 (MEDIA_INFO_VIDEO_RENDERING_START)！画面已成功上屏！");
+                    LogUtil.log("【CS】【播放器】[" + tag + "] received first frame rendering ready signal (MEDIA_INFO_VIDEO_RENDERING_START)！frame successfully displayed on screen！");
                 } else if (what == android.media.MediaPlayer.MEDIA_INFO_BUFFERING_START) {
-                    LogUtil.log("【CS】【播放器】[" + tag + "] 正在缓冲数据...");
+                    LogUtil.log("【CS】【播放器】[" + tag + "] buffering data...");
                 } else if (what == android.media.MediaPlayer.MEDIA_INFO_BUFFERING_END) {
-                    LogUtil.log("【CS】【播放器】[" + tag + "] 数据缓冲完成");
+                    LogUtil.log("【CS】【播放器】[" + tag + "] data buffering complete");
                 } else {
                     LogUtil.log("【CS】【播放器】[" + tag + "] MediaPlayer info: what=" + what + " extra=" + extra);
                 }
@@ -550,10 +550,10 @@ public final class MediaPlayerManager {
 
             player.start();
             markCamera2PlaybackStarted(player, tag);
-            LogUtil.log("【CS】【播放器】[" + tag + "] 播放器启动成功！(视频规格: " + videoW + "x" + videoH
+            LogUtil.log("【CS】【播放器】[" + tag + "] player started successfully！(video specs: " + videoW + "x" + videoH
                     + ", 时长: " + duration + "ms, prepare耗时: " + prepareDuration + "ms, isPlaying=" + player.isPlaying() + ")");
         } catch (Exception e) {
-            LogUtil.e("【CS】【播放器】【初始化异常】[" + tag + "] 启动播放器失败: " + e.getMessage(), e);
+            LogUtil.e("【CS】【播放器】【initialization exception】[" + tag + "] 启动播放器failed: " + e.getMessage(), e);
         }
     }
 }

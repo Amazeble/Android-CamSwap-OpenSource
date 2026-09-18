@@ -107,7 +107,7 @@ public final class ExoPlayerBackend implements SurfacePlayerBackend {
 
                 @Override
                 public void onPlayerError(PlaybackException error) {
-                    LogUtil.log("【CS】ExoPlayer 播放错误: " + error.getMessage()
+                    LogUtil.log("【CS】ExoPlayer playback error: " + error.getMessage()
                             + " code=" + error.errorCode);
                     if (listener != null) {
                         listener.onError(error.getMessage(), error);
@@ -124,9 +124,9 @@ public final class ExoPlayerBackend implements SurfacePlayerBackend {
             player.prepare();
             player.play();
 
-            LogUtil.log("【CS】ExoPlayer 开始播放: " + source.streamUrl);
+            LogUtil.log("【CS】ExoPlayer starting playback: " + source.streamUrl);
         } catch (Exception e) {
-            LogUtil.log("【CS】ExoPlayer 初始化失败: " + e);
+            LogUtil.log("【CS】ExoPlayer 初始化failed: " + e);
             if (listener != null) {
                 listener.onError("ExoPlayer init failed", e);
             }
@@ -156,7 +156,7 @@ public final class ExoPlayerBackend implements SurfacePlayerBackend {
                         "createMediaSource", MediaItem.class);
                 return (MediaSource) createMethod.invoke(rtmpFactory, MediaItem.fromUri(uri));
             } catch (Exception e) {
-                LogUtil.log("【CS】RTMP MediaSource 创建失败，降级为 Progressive: " + e);
+                LogUtil.log("【CS】RTMP MediaSource 创建failed，降级为 Progressive: " + e);
             }
         }
 
@@ -200,7 +200,7 @@ public final class ExoPlayerBackend implements SurfacePlayerBackend {
                     player.play();
                     if (listener != null) listener.onReconnected();
                 } catch (Exception e) {
-                    LogUtil.log("【CS】ExoPlayer 重连失败: " + e);
+                    LogUtil.log("【CS】ExoPlayer 重连failed: " + e);
                     scheduleReconnect();
                 }
             }

@@ -46,7 +46,7 @@ public class Camera2Handler implements ICameraHandler {
             HookMain.camera2Hook.hookAllCreateSessionVariants(deviceImplClass);
             LogUtil.log("【CS】已在 CameraDeviceImpl 上预装 session hooks");
         } catch (Throwable t) {
-            LogUtil.log("【CS】预装 session hooks 失败: " + t);
+            LogUtil.log("【CS】预装 session hooks failed: " + t);
         }
     }
 
@@ -73,12 +73,12 @@ public class Camera2Handler implements ICameraHandler {
                         }
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】openCamera(3-arg) before 异常: " + t);
+                    LogUtil.log("【CS】openCamera(3-arg) before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook openCamera(3-arg) 失败: " + t);
+            LogUtil.log("【CS】Hook openCamera(3-arg) failed: " + t);
         }
     }
 
@@ -105,12 +105,12 @@ public class Camera2Handler implements ICameraHandler {
                         }
                     }
                 } catch (Throwable t) {
-                    LogUtil.log("【CS】openCamera(executor) before 异常: " + t);
+                    LogUtil.log("【CS】openCamera(executor) before exception: " + t);
                 }
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook openCamera(executor) 失败: " + t);
+            LogUtil.log("【CS】Hook openCamera(executor) failed: " + t);
         }
     }
 
@@ -138,7 +138,7 @@ public class Camera2Handler implements ICameraHandler {
                         return chain.proceed(args);
                     }
                     if (HookMain.camera2Hook.isCurrentSessionBypassed()) {
-                        LogUtil.log("【CS】【addTarget】当前会话已旁路，保留原始目标: " + targetSurface);
+                        LogUtil.log("【CS】【addTarget】Current session bypassed, keeping original target: " + targetSurface);
                         return chain.proceed(args);
                     }
 
@@ -148,7 +148,7 @@ public class Camera2Handler implements ICameraHandler {
                         LogUtil.log("【CS】【addTarget】检测到 ImageReader Surface: " + targetSurface);
                         if (HookMain.camera2Hook.isJpegReaderSurface(targetSurface)) {
                             HookMain.camera2Hook.markPendingJpegCapture(targetSurface);
-                            LogUtil.log("【CS】【addTarget】保留 JPEG ImageReader 目标用于拍照: " + targetSurface);
+                            LogUtil.log("【CS】【addTarget】Keeping JPEG ImageReader target for photo capture: " + targetSurface);
                             return chain.proceed(args);
                         }
                     }
@@ -184,7 +184,7 @@ public class Camera2Handler implements ICameraHandler {
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.e("【CS】Hook addTarget 失败: " + t.getMessage(), t);
+            LogUtil.e("【CS】Hook addTarget failed: " + t.getMessage(), t);
         }
     }
 
@@ -212,13 +212,13 @@ public class Camera2Handler implements ICameraHandler {
                 return chain.proceed(args);
             });
         } catch (Throwable t) {
-            LogUtil.e("【CS】Hook removeTarget 失败: " + t.getMessage(), t);
+            LogUtil.e("【CS】Hook removeTarget failed: " + t.getMessage(), t);
         }
     }
 
     // ================================================================
     // 5. CaptureRequest.Builder.build()
-    //    before-only: 触发播放
+    //    before-only: (triggering playback)
     // ================================================================
     private void hookBuild(ClassLoader classLoader, String packageName) {
         try {
@@ -235,15 +235,15 @@ public class Camera2Handler implements ICameraHandler {
                         HookMain.camera2Hook.captureBuilder = (CaptureRequest.Builder) thisObject;
                         if (!HookGuards.shouldBypass(packageName, HookGuards.getCurrentVideoFile())) {
                             if (HookMain.camera2Hook.isCurrentSessionBypassed()) {
-                                LogUtil.log("【CS】【build】当前会话已旁路，跳过虚拟播放启动");
+                                LogUtil.log("【CS】【build】Current session bypassed, skipping virtual playback start");
                             } else {
                                 LogUtil.log("【CS】【build】开始构建捕获请求"
-                                        + (hasPending ? " (延迟重试触发播放)" : " (触发播放)"));
+                                        + (hasPending ? " ((delayed retry triggering playback))" : " ((triggering playback))"));
                                 if (VideoManager.getConfig().getBoolean(ConfigManager.KEY_ENABLE_PHOTO_FAKE, false)
                                         && HookMain.camera2Hook.pendingPhotoSurface != null
                                         && HookMain.camera2Hook.isJpegReaderSurface(
                                                 HookMain.camera2Hook.pendingPhotoSurface)) {
-                                    LogUtil.log("【CS】【build】已标记等待 JPEG acquire 替换: "
+                                    LogUtil.log("【CS】【build】Marked waiting for JPEG acquire replacement: "
                                             + HookMain.camera2Hook.pendingPhotoSurface);
                                 }
                                 HookMain.process_camera2_play();
@@ -256,7 +256,7 @@ public class Camera2Handler implements ICameraHandler {
                 return chain.proceed(toArgs(chain.getArgs()));
             });
         } catch (Throwable t) {
-            LogUtil.e("【CS】Hook build 失败: " + t.getMessage(), t);
+            LogUtil.e("【CS】Hook build failed: " + t.getMessage(), t);
         }
     }
 

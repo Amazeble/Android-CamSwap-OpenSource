@@ -79,7 +79,7 @@ class MediaManagerViewModel(application: Application) : AndroidViewModel(applica
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("CamSwap", "创建.nomedia失败: ${e.message}")
+            android.util.Log.e("CamSwap", "创建.nomediafailed: ${e.message}")
         }
     }
 
@@ -247,7 +247,7 @@ class MediaManagerViewModel(application: Application) : AndroidViewModel(applica
                     }
 
                     if (effectiveType == MediaType.IMAGE) {
-                        android.util.Log.d("CamSwap", "开始图片转视频流程...")
+                        android.util.Log.d("CamSwap", "Starting image to video conversion process...")
                         
                         // 1. Save to temp file using the original name to produce a clean output filename
                         val extension = originalName?.substringAfterLast('.', "jpg") ?: "jpg"
@@ -262,10 +262,10 @@ class MediaManagerViewModel(application: Application) : AndroidViewModel(applica
                             }
                         }
                         
-                        android.util.Log.d("CamSwap", "临时文件已保存: ${tempFile.absolutePath}, 大小: ${tempFile.length()}")
+                        android.util.Log.d("CamSwap", "temp file saved: ${tempFile.absolutePath}, size: ${tempFile.length()}")
                         
                         if (!tempFile.exists() || tempFile.length() == 0L) {
-                            android.util.Log.e("CamSwap", "临时文件为空或不存在!")
+                            android.util.Log.e("CamSwap", "temp file is empty or does not exist!")
                             continue
                         }
                         
@@ -276,7 +276,7 @@ class MediaManagerViewModel(application: Application) : AndroidViewModel(applica
                         if (tempFile.exists()) tempFile.delete()
                         
                         if (convertedFile != null && convertedFile.exists() && convertedFile.length() > 0) {
-                            android.util.Log.d("CamSwap", "转换成功: ${convertedFile.name}, 大小: ${convertedFile.length()}")
+                            android.util.Log.d("CamSwap", "转换成功: ${convertedFile.name}, size: ${convertedFile.length()}")
                             // Auto-select the converted video
                             configManager.setString(ConfigManager.KEY_SELECTED_VIDEO, convertedFile.name)
                             _uiState.update { it.copy(selectedVideoName = convertedFile.name) }
@@ -285,7 +285,7 @@ class MediaManagerViewModel(application: Application) : AndroidViewModel(applica
                                     IpcContract.URI_CONFIG, null)
                             } catch (_: Exception) {}
                         } else {
-                            android.util.Log.e("CamSwap", "图片转视频失败! convertedFile=$convertedFile")
+                            android.util.Log.e("CamSwap", "Image to video conversion failed! convertedFile=$convertedFile")
                         }
                         
                     } else {
@@ -305,7 +305,7 @@ class MediaManagerViewModel(application: Application) : AndroidViewModel(applica
                             destFile.setReadable(true, false)
                             Runtime.getRuntime().exec(arrayOf("chmod", "644", destFile.absolutePath))
                         } catch (_: Exception) {}
-                        android.util.Log.d("CamSwap", "文件已保存: ${destFile.absolutePath}, 大小: ${destFile.length()}")
+                        android.util.Log.d("CamSwap", "file saved: ${destFile.absolutePath}, size: ${destFile.length()}")
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("CamSwap", "addMedia 异常: ${e.message}", e)

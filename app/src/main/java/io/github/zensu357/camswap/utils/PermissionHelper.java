@@ -33,7 +33,7 @@ public class PermissionHelper {
 
         if (!providerAvailable && hasPrivateVideoCache) {
             forcePrivate = true;
-            LogUtil.log("【CS】检测到私有缓存视频，冷启动强制使用私有目录");
+            LogUtil.log("【CS】Detected private cached video, cold start forcing use of private directory");
         }
 
         int auth_statue = 0;
@@ -82,15 +82,15 @@ public class PermissionHelper {
                 File configFile = new File(publicDir, ConfigManager.CONFIG_FILE_NAME);
                 if ((publicDir.exists() && publicDir.isDirectory() && publicDir.list() != null)
                         || (configFile.exists() && configFile.canRead())) {
-                    LogUtil.log("【CS】权限检查失败但公共目录或配置文件可读，强制使用公共目录");
+                    LogUtil.log("【CS】权限检查failed但公共目录或配置文件可读，强制使用公共目录");
                     auth_statue = 2;
                 }
             } catch (Exception e) {
-                LogUtil.log("【CS】公共目录检查异常：" + e.toString());
+                LogUtil.log("【CS】public directory check exception：" + e.toString());
             }
         }
 
-        LogUtil.log("【CS】权限状态 auth_statue: " + auth_statue + ", forcePrivate: " + forcePrivate + ", provider: "
+        LogUtil.log("【CS】permission status auth_statue: " + auth_statue + ", forcePrivate: " + forcePrivate + ", provider: "
                 + providerAvailable + ", privateCache: " + hasPrivateVideoCache);
 
         if ((auth_statue < 1 && !providerAvailable) || forcePrivate) {
@@ -117,14 +117,14 @@ public class PermissionHelper {
                 noMedia.createNewFile();
             }
         } catch (Exception e) {
-            LogUtil.log("【CS】创建.nomedia失败: " + e.toString());
+            LogUtil.log("【CS】创建.nomediafailed: " + e.toString());
         }
     }
 
     private static void setupPrivateDirectory(Context context, String packageName, ConfigManager config) {
         File privateDir = context.getExternalFilesDir(null);
         if (privateDir == null) {
-            LogUtil.log("【CS】无法获取私有目录，可能存储不可用");
+            LogUtil.log("【CS】cannot get private directory, storage may be unavailable");
             return;
         }
 
@@ -137,11 +137,11 @@ public class PermissionHelper {
         }
 
         VideoManager.video_path = shown_file.getAbsolutePath() + "/";
-        LogUtil.log("【CS】切换到私有目录: " + VideoManager.video_path);
+        LogUtil.log("【CS】switching to private directory: " + VideoManager.video_path);
         try {
             createNoMediaFile(shown_file);
         } catch (Exception e) {
-            LogUtil.log("【CS】私有目录创建.nomedia失败: " + e);
+            LogUtil.log("【CS】私有目录创建.nomediafailed: " + e);
         }
 
         File markerFile = new File(privateDir.getAbsolutePath() + "/Camera1/" + "has_shown");

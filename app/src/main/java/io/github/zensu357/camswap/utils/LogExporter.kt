@@ -17,7 +17,7 @@ import java.util.zip.ZipOutputStream
 /**
  * 稳健型诊断日志打包与导出工具
  * 架构特性：
- * 1. 模块化独立采集：单项命令失败绝不影响整体，兼容各种定制 ROM 与 Root 环境；
+ * 1. 模块化独立采集：单项命令failed绝不影响整体，兼容各种定制 ROM 与 Root 环境；
  * 2. 全量敏感信息脱敏：自动过滤 MAC、IP、IMEI、Android ID、密钥、WiFi 等敏感标识；
  * 3. 结构化 ZIP 分类归档：提供 summary、config、status、logs 目录与 CamSwap 核心日志快速筛选；
  * 4. SELinux 严格/宽容模式全兼容与免 Root 优雅降级全兜底。
@@ -56,7 +56,7 @@ object LogExporter {
             } catch (_: Throwable) {
                 false
             }
-            LogUtil.log("$TAG Root 权限状态: $hasRoot")
+            LogUtil.log("$TAG Root permission status: $hasRoot")
 
             // 2. 收集 process & injection 状态
             val procContent = if (hasRoot) {
@@ -232,7 +232,7 @@ object LogExporter {
             }
             val exitCode = process.waitFor()
             val success = exitCode == 0
-            LogUtil.log("$TAG 清空日志缓存: " + if (success) "【成功 SUCCESS】" else "【失败 FAILED】")
+            LogUtil.log("$TAG 清空日志缓存: " + if (success) "【成功 SUCCESS】" else "【failed FAILED】")
             success
         } catch (t: Throwable) {
             LogUtil.log("$TAG 清空日志发生异常: ${t.message}")
