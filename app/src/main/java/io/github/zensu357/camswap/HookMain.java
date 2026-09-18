@@ -66,8 +66,8 @@ public class HookMain {
     // Camera2 shared state
     public static int imageReaderFormat = 0;
     public static boolean need_to_show_toast = true;
-    public static int c2_ori_width = 1280;
-    public static int c2_ori_height = 720;
+    public static int c2_ori_width = 2160;
+    public static int c2_ori_height = 1440;
     public static Class c2_state_callback;
     public static CameraDevice.StateCallback c2_state_cb;
     public static Context toast_content;
