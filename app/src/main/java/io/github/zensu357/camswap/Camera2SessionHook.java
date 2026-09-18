@@ -22,6 +22,7 @@ import java.util.Locale;
 
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.Set;
 import java.util.Map;
 import android.media.ImageWriter;
@@ -119,6 +120,15 @@ public final class Camera2SessionHook {
     private volatile boolean bypassCurrentSession = false;
     /** 标记正在释放资源，防止释放期间竞态创建新桥接 */
     private volatile boolean isReleasing = false;
+
+    // ================= VTCam (Camera 101) 支持 =================
+    private volatile String currentCameraId;
+    private volatile boolean vtcamSessionActive = false;
+    private volatile boolean vtcamApplying = false;
+    private volatile boolean vtcamPumpRunning = false;
+    private ImageReader vtcamYuvReader;
+    private ImageReader vtcamJpegReader;
+    private ImageWriter vtcamInputWriter;
 
     // Deferred playback: set when build() fires before addTarget()
     volatile boolean pendingPlayback = false;
@@ -221,6 +231,188 @@ public final class Camera2SessionHook {
         currentActivityClassName = activityClassName;
     }
 
+    // =====================================================================
+    // VTCam (Camera 101) support
+    // =====================================================================
+    public void setCurrentCameraId(String cameraId) {
+        this.currentCameraId = cameraId;
+        LogUtil.log("【CS】openCamera cameraId=" + cameraId);
+    }
+
+    public String getCurrentCameraId() {
+        return currentCameraId;
+    }
+
+    /** Camera 100/101... = 厂商逻辑相机（VTCam 用例），需要 input+target 流。 */
+    public boolean isVtcamSession() {
+        String id = currentCameraId;
+        if (id == null) return false;
+        try {
+            return Integer.parseInt(id.trim()) >= 100;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    public Surface getVtcamTargetSurface() {
+        return vtcamYuvReader != null ? vtcamYuvReader.getSurface() : null;
+    }
+
+    /**
+     * 构建 VTCam 兼容的 SessionConfiguration：
+     *   - InputConfiguration(YUV)      → 满足 m_pInputYuvStream
+     *   - Output YUV_420_888 reader    → 满足 m_pTargetYuvStream
+     *   - Output JPEG reader           → 满足 m_pTargetJpegStream
+     *   - 不含任何 PRIVATE/SurfaceTexture 流（VTCam 拒绝该流类型）
+     * 应用真实预览 SurfaceTexture → 记为 GL 播放目标（视频画面来源）。
+     */
+    private SessionConfiguration buildVtcamSessionConfiguration(
+            Executor executor, CameraCaptureSession.StateCallback cb,
+            List<Surface> originalSurfaces) {
+        int w = 1280, h = 720;
+
+        // 应用真实预览 SurfaceTexture → 记为 GL 播放目标（视频画面来源）
+        if (originalSurfaces != null) {
+            for (Surface s : originalSurfaces) {
+                if (isSurfaceTextureSurface(s)) {
+                    rememberPreviewSurface(s);
+                }
+            }
+        }
+
+        releaseVtcamResources();
+
+        enterInternalBridgeCreation();
+        try {
+            vtcamYuvReader = ImageReader.newInstance(w, h, ImageFormat.YUV_420_888, 4);
+            vtcamJpegReader = ImageReader.newInstance(w, h, ImageFormat.JPEG, 2);
+        } finally {
+            exitInternalBridgeCreation();
+        }
+        internalFakeYuvReaderSurfaces.add(vtcamYuvReader.getSurface());
+        internalFakeYuvReaderSurfaces.add(vtcamJpegReader.getSurface());
+
+        List<OutputConfiguration> outputs = new ArrayList<>();
+        outputs.add(new OutputConfiguration(vtcamYuvReader.getSurface()));
+        outputs.add(new OutputConfiguration(vtcamJpegReader.getSurface()));
+
+        SessionConfiguration vc = new SessionConfiguration(
+                SessionConfiguration.SESSION_REGULAR, outputs, executor, cb);
+        vc.setInputConfiguration(new InputConfiguration(w, h, ImageFormat.YUV_420_888));
+
+        vtcamSessionActive = true;
+        LogUtil.log("【CS】【VTCam】构建 101 会话：input=YUV " + w + "x" + h
+                + " | targetYUV + targetJPEG | 无 PRIVATE 流");
+        return vc;
+    }
+
+    /** 变体 1~5 统一入口：自建 VTCam 会话并经变体 6 重入，跳过原始调用。 */
+    private void redirectVtcamSession(Object deviceObj, List<Surface> originals,
+            Executor executor, CameraCaptureSession.StateCallback cb) throws Throwable {
+        SessionConfiguration vc = buildVtcamSessionConfiguration(executor, cb, originals);
+        hookSessionCallback(cb);
+        vtcamApplying = true;
+        try {
+            ((CameraDevice) deviceObj).createCaptureSession(vc);
+        } finally {
+            vtcamApplying = false;
+        }
+        LogUtil.log("【CS】【VTCam】会话已重定向为 VTCam 兼容配置");
+    }
+
+    private static Executor executorFromHandler(Handler handler) {
+        if (handler != null) {
+            return handler::post;
+        }
+        return Runnable::run;
+    }
+
+    /** onConfigured 后启动 input 泵 + repeating request，保持 VTCam 管线存活。 */
+    private void startVtcamInputPump(CameraCaptureSession session) {
+        try {
+            Surface in = session.getInputSurface();
+            if (in == null) {
+                LogUtil.log("【CS】【VTCam】session 无 input surface");
+                return;
+            }
+            vtcamInputWriter = ImageWriter.newInstance(in, 4);
+            startOrRestartYuvDecoder();
+            ensureWhatsAppYuvPumpHandler();
+            vtcamPumpRunning = true;
+            if (whatsappYuvPumpHandler != null) {
+                whatsappYuvPumpHandler.post(vtcamInputPumpRunnable);
+            }
+            try {
+                CaptureRequest.Builder b = session.getDevice()
+                        .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                b.addTarget(vtcamYuvReader.getSurface());
+                session.setRepeatingRequest(b.build(), null, whatsappYuvPumpHandler);
+            } catch (Throwable t) {
+                LogUtil.log("【CS】【VTCam】repeating request 失败：" + t);
+            }
+            LogUtil.log("【CS】【VTCam】input 泵与 repeating request 已启动");
+        } catch (Throwable t) {
+            LogUtil.log("【CS】【VTCam】input pump 启动失败：" + t);
+        }
+    }
+
+    private final Runnable vtcamInputPumpRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!vtcamPumpRunning || isReleasing) return;
+            try {
+                MediaCodecYuvDecoder dec = yuvDecoder;
+                ImageWriter w = vtcamInputWriter;
+                if (dec != null && w != null) {
+                    MediaCodecYuvDecoder.YuvFrame yuv = dec.acquireLatestFrame();
+                    if (yuv != null) {
+                        Image image = w.dequeueInputImage();
+                        if (image != null) {
+                            boolean queued = false;
+                            try {
+                                copyYuvFrameToImageWithStride(yuv, image);
+                                image.setTimestamp(getNextMonotonicPtsNs());
+                                w.queueInputImage(image);
+                                queued = true;
+                            } finally {
+                                if (!queued) {
+                                    try { image.close(); } catch (Throwable ignored) {}
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            if (whatsappYuvPumpHandler != null && vtcamPumpRunning) {
+                whatsappYuvPumpHandler.postDelayed(this, 33L);
+            }
+        }
+    };
+
+    private void releaseVtcamResources() {
+        vtcamPumpRunning = false;
+        vtcamSessionActive = false;
+        Handler handler = whatsappYuvPumpHandler;
+        if (handler != null) {
+            handler.removeCallbacks(vtcamInputPumpRunnable);
+        }
+        if (vtcamInputWriter != null) {
+            try { vtcamInputWriter.close(); } catch (Throwable ignored) {}
+            vtcamInputWriter = null;
+        }
+        if (vtcamYuvReader != null) {
+            try { internalFakeYuvReaderSurfaces.remove(vtcamYuvReader.getSurface()); } catch (Throwable ignored) {}
+            try { vtcamYuvReader.close(); } catch (Throwable ignored) {}
+            vtcamYuvReader = null;
+        }
+        if (vtcamJpegReader != null) {
+            try { internalFakeYuvReaderSurfaces.remove(vtcamJpegReader.getSurface()); } catch (Throwable ignored) {}
+            try { vtcamJpegReader.close(); } catch (Throwable ignored) {}
+            vtcamJpegReader = null;
+        }
+    }
+
     public static boolean isWhatsAppPackage(String packageName) {
         return packageName != null && packageName.toLowerCase(Locale.ROOT).contains("whatsapp");
     }
@@ -299,6 +491,7 @@ public final class Camera2SessionHook {
                     createVirtualSurface();
                     playerManager.releaseCamera2Resources();
                     releaseImageWriters(false);
+                    releaseVtcamResources();          // ★ VTCam
                     previewSurface1 = null;
                     readerSurface1 = null;
                     readerSurface = null;
@@ -351,6 +544,7 @@ public final class Camera2SessionHook {
                     yuvBridgeSessionReady = false;
                     stopAllWhatsAppYuvPumps();
                     playerManager.releaseCamera2Resources();
+                    releaseVtcamResources();          // ★ VTCam
                     releaseImageWriters();
                 } catch (Throwable t) {
                     LogUtil.log("【CS】onClosed before 异常: " + t);
@@ -388,6 +582,7 @@ public final class Camera2SessionHook {
                     yuvBridgeSessionReady = false;
                     stopAllWhatsAppYuvPumps();
                     playerManager.releaseCamera2Resources();
+                    releaseVtcamResources();          // ★ VTCam
                     releaseImageWriters();
                 } catch (Throwable t) {
                     LogUtil.log("【CS】onDisconnected before 异常: " + t);
@@ -1252,7 +1447,7 @@ public final class Camera2SessionHook {
                 try {
                     LogUtil.log("【CS】onConfigured ：" + args[0]);
                     markYuvBridgeSessionReadyIfPossible();
-                } catch (Throwable t) {
+                    }
                     LogUtil.log("【CS】onConfigured before 异常: " + t);
                 }
                 return chain.proceed(args);
