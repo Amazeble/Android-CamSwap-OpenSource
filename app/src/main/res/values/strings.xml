@@ -122,6 +122,8 @@
     <string name="replace_mode_image_desc">使用静态图片替换相机预览和拍照</string>
 
     <!-- Notification Service -->
+    <string name="notif_action_use_real">Use Real Camera</string>
+    <string name="notif_action_use_swapcam">Use SwapCam</string>
     <string name="notif_rotate_label">旋转:</string>
     <string name="notif_rotate_offset">旋转偏移: </string>
     <string name="notif_action_prev">上一条</string>

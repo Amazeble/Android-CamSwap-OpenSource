@@ -9,29 +9,29 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Color;
 import android.os.Build;
 import android.os.IBinder;
-import android.widget.RemoteViews;
-
 import io.github.zensu357.camswap.utils.LogUtil;
 
 public class NotificationService extends Service {
     private static final String CHANNEL_ID = "camswap_control_channel";
     private static final int NOTIFICATION_ID = 1001;
+    
     private static final String ACTION_PREV_INTERNAL = "io.github.zensu357.camswap.action.PREV_INTERNAL";
     private static final String ACTION_NEXT_INTERNAL = "io.github.zensu357.camswap.action.NEXT_INTERNAL";
     private static final String ACTION_ROTATE_INTERNAL = "io.github.zensu357.camswap.action.ROTATE_INTERNAL";
     private static final String ACTION_EXIT_INTERNAL = "io.github.zensu357.camswap.action.EXIT_INTERNAL";
-    private static final String ACTION_PASSTHROUGH_INTERNAL = "io.github.zensu357.camswap.action.PASSTHROUGH_INTERNAL";
+    private static final String ACTION_PASSTHROUGH_INTERNAL = "io.github.zensu357.camswap.action.PASSTHROUGH_INTERNAL"; // NEW
+
     private ConfigManager configManager;
     private int currentRotationOffset = 0;
 
-    private BroadcastReceiver controlReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver controlReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             android.util.Log.d("Camswap_NOTIF", "收到操作指令: " + action);
+            
             if (ACTION_EXIT_INTERNAL.equals(action)) {
                 stopSelf();
             } else if (ACTION_PREV_INTERNAL.equals(action)) {
@@ -39,27 +39,24 @@ public class NotificationService extends Service {
             } else if (ACTION_NEXT_INTERNAL.equals(action)) {
                 handleSwitch(true);
             } else if (ACTION_ROTATE_INTERNAL.equals(action)) {
-                // 循环切换旋转偏移: 0 -> 90 -> 180 -> 270 -> 0
-            } else if (ACTION_PASSTHROUGH_INTERNAL.equals(action)) {
-                boolean currentState = configManager.getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false);
-                configManager.setBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, !currentState);
-                
-                // Refresh notification UI
-                NotificationManager nm = getSystemService(NotificationManager.class);
-                if (nm != null) {
-                    nm.notify(NOTIFICATION_ID, buildNotification());            
                 currentRotationOffset = (currentRotationOffset + 90) % 360;
                 if (configManager != null) {
-                    // 先强制重新加载最新配置，避免用过时的 configData 覆盖文件导致其他设置丢失
                     configManager.forceReload();
                     configManager.setInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, currentRotationOffset);
                 }
-                // 更新通知显示
                 NotificationManager nm = getSystemService(NotificationManager.class);
                 if (nm != null) {
                     nm.notify(NOTIFICATION_ID, buildNotification());
                 }
                 android.util.Log.d("Camswap_NOTIF", "旋转偏移已切换为: " + currentRotationOffset + "°");
+            } else if (ACTION_PASSTHROUGH_INTERNAL.equals(action)) { // NEW HANDLER
+                boolean currentState = configManager.getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false);
+                configManager.setBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, !currentState);
+                
+                NotificationManager nm = getSystemService(NotificationManager.class);
+                if (nm != null) {
+                    nm.notify(NOTIFICATION_ID, buildNotification());
+                }
             }
         }
     };
@@ -73,18 +70,17 @@ public class NotificationService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
-
         configManager = new ConfigManager();
         configManager.setContext(this);
         currentRotationOffset = configManager.getInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, 0);
-
+        
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_EXIT_INTERNAL);
         filter.addAction(ACTION_PREV_INTERNAL);
         filter.addAction(ACTION_NEXT_INTERNAL);
         filter.addAction(ACTION_ROTATE_INTERNAL);
-        filter.addAction(ACTION_PASSTHROUGH_INTERNAL);
-
+        filter.addAction(ACTION_PASSTHROUGH_INTERNAL); // NEW
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(controlReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -135,7 +131,7 @@ public class NotificationService extends Service {
         builder.addAction(new Notification.Action.Builder(null, rotationLabel,
                 getPendingIntent(ACTION_ROTATE_INTERNAL)).build());
 
-        // 👇 ADD THE NEW PASSTHROUGH ACTION HERE 👇
+        // 👇 NEW PASSTHROUGH ACTION BUTTON 👇
         boolean isPassthrough = configManager.getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false);
         String passthroughLabel = isPassthrough 
             ? getString(R.string.notif_action_use_swapcam) 
@@ -174,11 +170,10 @@ public class NotificationService extends Service {
             channel.setDescription(getString(R.string.notif_channel_desc));
             channel.enableLights(false);
             channel.enableVibration(false);
-
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
             }
         }
     }
-}
+} // <-- This closing brace for the class was likely missing or misplaced
