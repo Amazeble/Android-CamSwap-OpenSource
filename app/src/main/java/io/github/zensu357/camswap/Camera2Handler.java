@@ -28,6 +28,7 @@ public class Camera2Handler implements ICameraHandler {
     public void init(final Api101PackageContext packageContext) {
         final ClassLoader classLoader = packageContext.classLoader;
         final String packageName = packageContext.packageName;
+
         hookOpenCamera3Arg(classLoader, packageName);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             hookOpenCameraExecutor(classLoader, packageName);
@@ -52,7 +53,7 @@ public class Camera2Handler implements ICameraHandler {
 
     // ================================================================
     // 1. CameraManager.openCamera(String, StateCallback, Handler)
-    //    before-only: 记录 state callback 类 + 触发初始化
+    //    before-only: 记录 state callback 类 + 记录 cameraId + 触发初始化
     // ================================================================
     private void hookOpenCamera3Arg(ClassLoader classLoader, String packageName) {
         try {
@@ -62,14 +63,18 @@ public class Camera2Handler implements ICameraHandler {
             Api101Runtime.requireModule().hook(method).intercept(chain -> {
                 Object[] args = toArgs(chain.getArgs());
                 try {
+                    // ★ VTCam 支持：记录本次打开的相机 ID（"0"/"1"/"101"...）
+                    if (args[0] instanceof String) {
+                        HookMain.camera2Hook.setCurrentCameraId((String) args[0]);
+                    }
                     if (args[1] != null) {
                         HookMain.c2_state_cb = (CameraDevice.StateCallback) args[1];
                         HookMain.c2_state_callback = args[1].getClass();
                         File file = HookGuards.resolveVideoFile(true);
                         if (!HookGuards.shouldBypass(packageName, file)) {
-                            LogUtil.log("【CS】1位参数初始化相机，类：" + HookMain.c2_state_callback.toString());
+                            LogUtil.log("【CS】1位参数初始化相机，类： " + HookMain.c2_state_callback.toString());
                             HookMain.camera2Hook.isFirstHookBuild = true;
-                            HookMain.process_camera2_init(HookMain.c2_state_callback);
+                            HookMain.process_camera2_init(HookMain.c2_state_cb);
                         }
                     }
                 } catch (Throwable t) {
@@ -84,7 +89,7 @@ public class Camera2Handler implements ICameraHandler {
 
     // ================================================================
     // 2. CameraManager.openCamera(String, Executor, StateCallback)
-    //    before-only: 记录 state callback 类 (API 28+)
+    //    before-only: 记录 state callback 类 + 记录 cameraId (API 28+)
     // ================================================================
     private void hookOpenCameraExecutor(ClassLoader classLoader, String packageName) {
         try {
@@ -94,14 +99,18 @@ public class Camera2Handler implements ICameraHandler {
             Api101Runtime.requireModule().hook(method).intercept(chain -> {
                 Object[] args = toArgs(chain.getArgs());
                 try {
+                    // ★ VTCam 支持：记录本次打开的相机 ID
+                    if (args[0] instanceof String) {
+                        HookMain.camera2Hook.setCurrentCameraId((String) args[0]);
+                    }
                     if (args[2] != null) {
                         HookMain.c2_state_cb = (CameraDevice.StateCallback) args[2];
                         HookMain.c2_state_callback = args[2].getClass();
                         File file = HookGuards.resolveVideoFile(true);
                         if (!HookGuards.shouldBypass(packageName, file)) {
-                            LogUtil.log("【CS】2位参数初始化相机，类：" + HookMain.c2_state_callback.toString());
+                            LogUtil.log("【CS】2位参数初始化相机，类： " + HookMain.c2_state_callback.toString());
                             HookMain.camera2Hook.isFirstHookBuild = true;
-                            HookMain.process_camera2_init(HookMain.c2_state_callback);
+                            HookMain.process_camera2_init(HookMain.c2_state_cb);
                         }
                     }
                 } catch (Throwable t) {
@@ -116,7 +125,7 @@ public class Camera2Handler implements ICameraHandler {
 
     // ================================================================
     // 3. CaptureRequest.Builder.addTarget(Surface)
-    //    before-only: surface 替换逻辑
+    //    before-only: surface 替换逻辑（含 VTCam 分支）
     // ================================================================
     private void hookAddTarget(ClassLoader classLoader, String packageName) {
         try {
@@ -142,6 +151,24 @@ public class Camera2Handler implements ICameraHandler {
                         return chain.proceed(args);
                     }
 
+                    // ★★★★★ VTCam (Camera 101) 分支 ★★★★★
+                    // 101 会话的 HAL 输出只有内部 YUV/JPEG reader，
+                    // 应用的请求目标必须重定向到会话内的 YUV target；
+                    // 同时把应用真实的预览 SurfaceTexture 记为 GL 播放目标，
+                    // 保证预览画面始终是替换视频，而不是真实相机。
+                    if (HookMain.camera2Hook.isVtcamSession()) {
+                        if (HookMain.camera2Hook.isSurfaceTextureSurface(targetSurface)) {
+                            HookMain.camera2Hook.rememberPreviewSurface(targetSurface);
+                        }
+                        Surface vtcamTarget = HookMain.camera2Hook.getVtcamTargetSurface();
+                        if (vtcamTarget != null && vtcamTarget.isValid()) {
+                            LogUtil.log("【CS】【VTCam】【addTarget】重定向请求目标 -> YUV target: "
+                                    + targetSurface + " -> " + vtcamTarget);
+                            args[0] = vtcamTarget;
+                        }
+                        return chain.proceed(args);
+                    }
+
                     // Dynamic defense for Photo Fake
                     if (VideoManager.getConfig().getBoolean(ConfigManager.KEY_ENABLE_PHOTO_FAKE, false)
                             && HookMain.camera2Hook.isTrackedReaderSurface(targetSurface)) {
@@ -152,11 +179,9 @@ public class Camera2Handler implements ICameraHandler {
                             return chain.proceed(args);
                         }
                     }
-
                     boolean isSurfaceTexture = HookMain.camera2Hook.isSurfaceTextureSurface(targetSurface);
                     boolean isJpeg = HookMain.camera2Hook.isJpegReaderSurface(targetSurface);
                     boolean isYuv = HookMain.camera2Hook.isYuvReaderSurface(targetSurface);
-
                     if (isSurfaceTexture || (!isJpeg && !HookMain.camera2Hook.isTrackedReaderSurface(targetSurface))) {
                         HookMain.camera2Hook.rememberPreviewSurface(targetSurface);
                         Surface vSurface = HookMain.camera2Hook.getVirtualSurfaceFor(targetSurface);
@@ -237,12 +262,12 @@ public class Camera2Handler implements ICameraHandler {
                             if (HookMain.camera2Hook.isCurrentSessionBypassed()) {
                                 LogUtil.log("【CS】【build】当前会话已旁路，跳过虚拟播放启动");
                             } else {
-                                LogUtil.log("【CS】【build】开始构建捕获请求"
-                                        + (hasPending ? " (延迟重试触发播放)" : " (触发播放)"));
+                                LogUtil.log("【CS】【build】开始构建捕获请求 "
+                                        + (hasPending ? " (延迟重试触发播放) " : " (触发播放) "));
                                 if (VideoManager.getConfig().getBoolean(ConfigManager.KEY_ENABLE_PHOTO_FAKE, false)
                                         && HookMain.camera2Hook.pendingPhotoSurface != null
                                         && HookMain.camera2Hook.isJpegReaderSurface(
-                                                HookMain.camera2Hook.pendingPhotoSurface)) {
+                                        HookMain.camera2Hook.pendingPhotoSurface)) {
                                     LogUtil.log("【CS】【build】已标记等待 JPEG acquire 替换: "
                                             + HookMain.camera2Hook.pendingPhotoSurface);
                                 }
@@ -263,7 +288,6 @@ public class Camera2Handler implements ICameraHandler {
     // ================================================================
     // Utilities
     // ================================================================
-
     private static Method resolveMethod(ClassLoader classLoader, String className,
             String methodName, Class<?>... parameterTypes) throws Exception {
         return HookUtils.resolveMethod(classLoader, className, methodName, parameterTypes);
