@@ -27,17 +27,9 @@ public class Camera2Handler implements ICameraHandler {
     @Override
     public void init(final Api101PackageContext packageContext) {
         final ClassLoader classLoader = packageContext.classLoader;
-        final String packageName = packageContext.packageName;
+        final String packageName = packageContext.hostPackageName;
+        
         hookGetCameraIdList(classLoader, packageName);
-
-        hookOpenCamera3Arg(classLoader, packageName);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            hookOpenCameraExecutor(classLoader, packageName);
-        }
-        hookAddTarget(classLoader, packageName);
-        hookRemoveTarget(classLoader, packageName);
-        hookBuild(classLoader, packageName);
-        // ... rest unchanged
 
         hookOpenCamera3Arg(classLoader, packageName);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -60,20 +52,23 @@ public class Camera2Handler implements ICameraHandler {
             LogUtil.log("【CS】预装 session hooks 失败: " + t);
         }
     }
-/**
-* Hide virtual VTCam cameras (ID >= 100) from getCameraIdList().
-* This forces apps like Firefox to fall back to physical camera 1 (front)
-* instead of the broken virtual RONT_VT camera 101.
-*/
+
+    /**
+     * Hide virtual VTCam cameras (ID >= 100) from getCameraIdList().
+     * This forces apps like Firefox to fall back to physical camera 1 (front)
+     * instead of the broken virtual RONT_VT camera 101.
+     */
     private void hookGetCameraIdList(ClassLoader classLoader, String packageName) {
         try {
             Method method = resolveMethod(classLoader,
                     "android.hardware.camera2.CameraManager",
                     "getCameraIdList");
-            Api101Runtime.requireModule().hook(method).after(chain -> {
+            Api101Runtime.requireModule().hook(method).intercept(chain -> {
+                Object[] args = toArgs(chain.getArgs());
+                Object result = chain.proceed(args);
                 try {
-                    String[] ids = (String[]) chain.getResult();
-                    if (ids == null) return;
+                    String[] ids = (String[]) result;
+                    if (ids == null) return result;
 
                     List<String> filtered = new ArrayList<>();
                     for (String id : ids) {
@@ -89,17 +84,19 @@ public class Camera2Handler implements ICameraHandler {
                     }
 
                     if (filtered.size() < ids.length) {
-                        chain.setResult(filtered.toArray(new String[0]));
                         LogUtil.log("【CS】getCameraIdList 过滤: " + ids.length + " -> " + filtered.size());
+                        return filtered.toArray(new String[0]);
                     }
                 } catch (Throwable t) {
                     LogUtil.log("【CS】getCameraIdList hook 异常: " + t);
                 }
+                return result;
             });
         } catch (Throwable t) {
             LogUtil.log("【CS】Hook getCameraIdList 失败: " + t);
         }
     }
+
     // ================================================================
     // 1. CameraManager.openCamera(String, StateCallback, Handler)
     //    before-only: 记录 state callback 类 + 记录 cameraId + 触发初始化
@@ -338,7 +335,7 @@ public class Camera2Handler implements ICameraHandler {
     // Utilities
     // ================================================================
     private static Method resolveMethod(ClassLoader classLoader, String className,
-            String methodName, Class<?>... parameterTypes) throws Exception {
+                                        String methodName, Class<?>... parameterTypes) throws Exception {
         return HookUtils.resolveMethod(classLoader, className, methodName, parameterTypes);
     }
 
