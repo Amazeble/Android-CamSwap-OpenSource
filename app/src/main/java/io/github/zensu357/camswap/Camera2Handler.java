@@ -5,7 +5,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.os.Build;
 import android.os.Handler;
 import android.view.Surface;
-
+import java.util.ArrayList;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -28,6 +28,16 @@ public class Camera2Handler implements ICameraHandler {
     public void init(final Api101PackageContext packageContext) {
         final ClassLoader classLoader = packageContext.classLoader;
         final String packageName = packageContext.packageName;
+        hookGetCameraIdList(classLoader, packageName);
+
+        hookOpenCamera3Arg(classLoader, packageName);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            hookOpenCameraExecutor(classLoader, packageName);
+        }
+        hookAddTarget(classLoader, packageName);
+        hookRemoveTarget(classLoader, packageName);
+        hookBuild(classLoader, packageName);
+        // ... rest unchanged
 
         hookOpenCamera3Arg(classLoader, packageName);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -50,7 +60,46 @@ public class Camera2Handler implements ICameraHandler {
             LogUtil.log("【CS】预装 session hooks 失败: " + t);
         }
     }
+/**
+* Hide virtual VTCam cameras (ID >= 100) from getCameraIdList().
+* This forces apps like Firefox to fall back to physical camera 1 (front)
+* instead of the broken virtual RONT_VT camera 101.
+*/
+    private void hookGetCameraIdList(ClassLoader classLoader, String packageName) {
+        try {
+            Method method = resolveMethod(classLoader,
+                    "android.hardware.camera2.CameraManager",
+                    "getCameraIdList");
+            Api101Runtime.requireModule().hook(method).after(chain -> {
+                try {
+                    String[] ids = (String[]) chain.getResult();
+                    if (ids == null) return;
 
+                    List<String> filtered = new ArrayList<>();
+                    for (String id : ids) {
+                        try {
+                            if (Integer.parseInt(id.trim()) < 100) {
+                                filtered.add(id);
+                            } else {
+                                LogUtil.log("【CS】getCameraIdList 隐藏虚拟相机: " + id);
+                            }
+                        } catch (NumberFormatException e) {
+                            filtered.add(id); // keep non-numeric IDs
+                        }
+                    }
+
+                    if (filtered.size() < ids.length) {
+                        chain.setResult(filtered.toArray(new String[0]));
+                        LogUtil.log("【CS】getCameraIdList 过滤: " + ids.length + " -> " + filtered.size());
+                    }
+                } catch (Throwable t) {
+                    LogUtil.log("【CS】getCameraIdList hook 异常: " + t);
+                }
+            });
+        } catch (Throwable t) {
+            LogUtil.log("【CS】Hook getCameraIdList 失败: " + t);
+        }
+    }
     // ================================================================
     // 1. CameraManager.openCamera(String, StateCallback, Handler)
     //    before-only: 记录 state callback 类 + 记录 cameraId + 触发初始化

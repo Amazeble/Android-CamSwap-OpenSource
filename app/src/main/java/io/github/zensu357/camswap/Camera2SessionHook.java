@@ -2886,7 +2886,11 @@
             }
             return false;
         }
-
+        public boolean isVtcamSession() {
+            // Virtual cameras are now hidden from enumeration,
+            // but keep this as a safety net in case an app hardcodes ID 101
+            return false;
+        }
         private void copyYuvFrameToImageWithStride(MediaCodecYuvDecoder.YuvFrame yuv, Image image) {
             Image.Plane[] planes = image.getPlanes();
             if (planes == null || planes.length < 3) return;
