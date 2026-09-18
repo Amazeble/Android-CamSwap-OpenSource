@@ -74,7 +74,7 @@ public class Camera2Handler implements ICameraHandler {
                         if (!HookGuards.shouldBypass(packageName, file)) {
                             LogUtil.log("【CS】1位参数初始化相机，类： " + HookMain.c2_state_callback.toString());
                             HookMain.camera2Hook.isFirstHookBuild = true;
-                            HookMain.process_camera2_init(HookMain.c2_state_cb);
+                            HookMain.process_camera2_init(HookMain.c2_state_callback);
                         }
                     }
                 } catch (Throwable t) {
