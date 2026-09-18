@@ -28,6 +28,9 @@ public final class HookGuards {
         if (VideoManager.getConfig().getBoolean(ConfigManager.KEY_DISABLE_MODULE, false)) {
             return true;
         }
+        if (VideoManager.getConfig().getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false)) {
+        return true; 
+    }
         // Stream mode: delegate to MediaSourceDescriptor-based check
         if (VideoManager.isStreamMode()) {
             return shouldBypass(packageName, VideoManager.getCurrentMediaSource());

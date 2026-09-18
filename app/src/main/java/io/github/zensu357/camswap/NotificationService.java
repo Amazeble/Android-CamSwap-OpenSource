@@ -23,7 +23,7 @@ public class NotificationService extends Service {
     private static final String ACTION_NEXT_INTERNAL = "io.github.zensu357.camswap.action.NEXT_INTERNAL";
     private static final String ACTION_ROTATE_INTERNAL = "io.github.zensu357.camswap.action.ROTATE_INTERNAL";
     private static final String ACTION_EXIT_INTERNAL = "io.github.zensu357.camswap.action.EXIT_INTERNAL";
-
+    private static final String ACTION_PASSTHROUGH_INTERNAL = "io.github.zensu357.camswap.action.PASSTHROUGH_INTERNAL";
     private ConfigManager configManager;
     private int currentRotationOffset = 0;
 
@@ -40,6 +40,14 @@ public class NotificationService extends Service {
                 handleSwitch(true);
             } else if (ACTION_ROTATE_INTERNAL.equals(action)) {
                 // 循环切换旋转偏移: 0 -> 90 -> 180 -> 270 -> 0
+            } else if (ACTION_PASSTHROUGH_INTERNAL.equals(action)) {
+                boolean currentState = configManager.getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false);
+                configManager.setBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, !currentState);
+                
+                // Refresh notification UI
+                NotificationManager nm = getSystemService(NotificationManager.class);
+                if (nm != null) {
+                    nm.notify(NOTIFICATION_ID, buildNotification());            
                 currentRotationOffset = (currentRotationOffset + 90) % 360;
                 if (configManager != null) {
                     // 先强制重新加载最新配置，避免用过时的 configData 覆盖文件导致其他设置丢失
@@ -75,6 +83,7 @@ public class NotificationService extends Service {
         filter.addAction(ACTION_PREV_INTERNAL);
         filter.addAction(ACTION_NEXT_INTERNAL);
         filter.addAction(ACTION_ROTATE_INTERNAL);
+        filter.addAction(ACTION_PASSTHROUGH_INTERNAL);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(controlReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -109,28 +118,36 @@ public class NotificationService extends Service {
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent,
                 PendingIntent.FLAG_IMMUTABLE);
-
+        
         String rotationLabel = getString(R.string.notif_rotate_label) + currentRotationOffset + "°";
-
+        
         Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.notif_rotate_offset) + currentRotationOffset + "°")
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true);
-
+                
         builder.addAction(new Notification.Action.Builder(null, getString(R.string.notif_action_prev),
                 getPendingIntent(ACTION_PREV_INTERNAL)).build());
-
         builder.addAction(new Notification.Action.Builder(null, getString(R.string.notif_action_next),
                 getPendingIntent(ACTION_NEXT_INTERNAL)).build());
-
         builder.addAction(new Notification.Action.Builder(null, rotationLabel,
                 getPendingIntent(ACTION_ROTATE_INTERNAL)).build());
 
+        // 👇 ADD THE NEW PASSTHROUGH ACTION HERE 👇
+        boolean isPassthrough = configManager.getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false);
+        String passthroughLabel = isPassthrough 
+            ? getString(R.string.notif_action_use_swapcam) 
+            : getString(R.string.notif_action_use_real);
+            
+        builder.addAction(new Notification.Action.Builder(null, passthroughLabel,
+                getPendingIntent(ACTION_PASSTHROUGH_INTERNAL)).build());
+        // 👆 END OF NEW CODE 👆
+
         builder.addAction(new Notification.Action.Builder(null, getString(R.string.notif_action_exit),
                 getPendingIntent(ACTION_EXIT_INTERNAL)).build());
-
+                
         return builder.build();
     }
 

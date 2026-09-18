@@ -19,6 +19,8 @@ public final class IpcContract {
     public static final String ACTION_NEXT = "io.github.zensu357.camswap.ACTION_CAMSWAP_NEXT";
     public static final String ACTION_ROTATE = "io.github.zensu357.camswap.ACTION_CAMSWAP_ROTATE";
     public static final String ACTION_EXIT = "io.github.zensu357.camswap.ACTION_CAMSWAP_EXIT";
+    // Add this near the other ACTION_ constants
+    public static final String ACTION_PASSTHROUGH = "io.github.zensu357.camswap.ACTION_CAMSWAP_PASSTHROUGH";
 
     public static final String EXTRA_CONFIG_JSON = "config_json";
     public static final String EXTRA_REQUESTER_PACKAGE = "requester_package";

@@ -126,6 +126,9 @@ public class HookMain {
     // Configuration watching (delegated to ConfigWatcher)
     // =====================================================================
 
+    // =====================================================================
+    // Configuration watching (delegated to ConfigWatcher)
+    // =====================================================================
     private static ConfigWatcher configWatcher;
 
     private static void initContentObserver(final Context context) {
@@ -141,6 +144,20 @@ public class HookMain {
                 public void onRotationChanged(int degrees) {
                     playerManager.updateRotation(degrees);
                     camera2Hook.restartYuvDecoderForSourceChange();
+                }
+
+                // 👇 ADD THIS NEW METHOD HERE 👇
+                @Override
+                public void onPassthroughChanged(boolean enabled) {
+                    if (enabled) {
+                        LogUtil.log("【CS】Passthrough mode enabled: Releasing fake resources to free Camera HAL.");
+                        playerManager.releaseAllRenderers();
+                        playerManager.releaseCamera1Resources();
+                        playerManager.releaseCamera2Resources();
+                        camera2Hook.stopContinuousYuvPumper();
+                    } else {
+                        LogUtil.log("【CS】Passthrough mode disabled: SwapCam active.");
+                    }
                 }
             });
             configWatcher.init(context);

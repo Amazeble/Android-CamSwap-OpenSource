@@ -22,7 +22,8 @@ public final class ConfigWatcher {
         void onMediaSourceChanged();
 
         void onRotationChanged(int degrees);
-    }
+        void onPassthroughChanged(boolean enabled); // <-- ADD THIS
+}
 
     private final Callback callback;
     private android.database.ContentObserver configObserver;
@@ -135,7 +136,12 @@ public final class ConfigWatcher {
         String oldStreamUrl = config.getString(ConfigManager.KEY_STREAM_URL, "");
 
         config.updateConfigFromJSON(configJson);
+        boolean oldPassthrough = oldConfigSnapshot.optBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false); // Note: you may need to snapshot this before update
+        boolean newPassthrough = config.getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false);
 
+        if (oldPassthrough != newPassthrough) {
+            callback.onPassthroughChanged(newPassthrough);
+        }
         // Snapshot new values
         String newVideo = config.getString(ConfigManager.KEY_SELECTED_VIDEO, "");
         String newImage = config.getString(ConfigManager.KEY_SELECTED_IMAGE, "");

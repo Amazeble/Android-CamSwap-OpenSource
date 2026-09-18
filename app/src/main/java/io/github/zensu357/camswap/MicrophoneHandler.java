@@ -97,12 +97,15 @@ public class MicrophoneHandler implements ICameraHandler {
 
     private static boolean isMicHookEnabled() {
         try {
+            // --- NEW: Bypass mic if passthrough is active ---
+            if (VideoManager.getConfig().getBoolean(ConfigManager.KEY_PASSTHROUGH_MODE, false)) {
+                return false; 
+            }
             return VideoManager.getConfig().getBoolean(ConfigManager.KEY_ENABLE_MIC_HOOK, false);
         } catch (Exception e) {
             return false;
         }
     }
-
     private static String getMicHookMode() {
         try {
             return VideoManager.getConfig().getString(
