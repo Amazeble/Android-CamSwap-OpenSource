@@ -12,7 +12,9 @@
     import android.os.Handler;
     import android.os.HandlerThread;
     import android.view.Surface;
-
+    import android.hardware.camera2.CameraManager;
+    import android.hardware.camera2.CameraCharacteristics;
+    import android.hardware.camera2.params.StreamConfigurationMap;
     import java.util.ArrayList;
     import java.io.File;
     import java.util.LinkedHashSet;
@@ -66,7 +68,7 @@
         private final MediaPlayerManager playerManager;
         private volatile String currentPackageName;
         private volatile String currentActivityClassName;
-
+        private volatile int vtcamInputFormat = ImageFormat.PRIVATE;
         // Camera2 surfaces
         Surface previewSurface;
         Surface previewSurface1;
@@ -269,9 +271,43 @@
         private SessionConfiguration buildVtcamSessionConfiguration(
                 Executor executor, CameraCaptureSession.StateCallback cb,
                 List<Surface> originalSurfaces) {
-            int w = 1280, h = 720;
 
-            // 应用真实预览 SurfaceTexture → 记为 GL 播放目标（视频画面来源）
+            int w = 1280, h = 720;
+            int inputFormat = ImageFormat.PRIVATE;
+
+            // ── Query the HAL for a supported input format + size ──
+            try {
+                android.content.Context ctx = HookMain.toast_content;
+                if (ctx != null && currentCameraId != null) {
+                    CameraManager cm = (CameraManager)
+                            ctx.getSystemService(android.content.Context.CAMERA_SERVICE);
+                    CameraCharacteristics chars = cm.getCameraCharacteristics(currentCameraId);
+                    StreamConfigurationMap map = chars.get(
+                            CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+
+                    android.util.Size[] yuvIn = map.getInputSizes(ImageFormat.YUV_420_888);
+                    if (yuvIn != null && yuvIn.length > 0) {
+                        inputFormat = ImageFormat.YUV_420_888;
+                        w = yuvIn[0].getWidth();
+                        h = yuvIn[0].getHeight();
+                        LogUtil.log("【CS】【VTCam】HAL supports YUV input: " + w + "x" + h);
+                    } else {
+                        android.util.Size[] privIn = map.getInputSizes(ImageFormat.PRIVATE);
+                        if (privIn != null && privIn.length > 0) {
+                            w = privIn[0].getWidth();
+                            h = privIn[0].getHeight();
+                        }
+                        inputFormat = ImageFormat.PRIVATE;
+                        LogUtil.log("【CS】【VTCam】HAL requires PRIVATE input: " + w + "x" + h);
+                    }
+                }
+            } catch (Throwable t) {
+                LogUtil.log("【CS】【VTCam】Query input sizes failed, defaulting PRIVATE: " + t);
+                inputFormat = ImageFormat.PRIVATE;
+            }
+
+            vtcamInputFormat = inputFormat;
+
             if (originalSurfaces != null) {
                 for (Surface s : originalSurfaces) {
                     if (isSurfaceTextureSurface(s)) {
@@ -281,14 +317,14 @@
             }
 
             releaseVtcamResources();
-
             enterInternalBridgeCreation();
             try {
-                vtcamYuvReader = ImageReader.newInstance(w, h, ImageFormat.YUV_420_888, 4);
+                vtcamYuvReader  = ImageReader.newInstance(w, h, ImageFormat.YUV_420_888, 4);
                 vtcamJpegReader = ImageReader.newInstance(w, h, ImageFormat.JPEG, 2);
             } finally {
                 exitInternalBridgeCreation();
             }
+
             internalFakeYuvReaderSurfaces.add(vtcamYuvReader.getSurface());
             internalFakeYuvReaderSurfaces.add(vtcamJpegReader.getSurface());
 
@@ -298,26 +334,36 @@
 
             SessionConfiguration vc = new SessionConfiguration(
                     SessionConfiguration.SESSION_REGULAR, outputs, executor, cb);
-            vc.setInputConfiguration(new InputConfiguration(w, h, ImageFormat.YUV_420_888));
+
+            // ★ THE FIX: use queried format, not hardcoded YUV_420_888
+            vc.setInputConfiguration(new InputConfiguration(w, h, inputFormat));
 
             vtcamSessionActive = true;
-            LogUtil.log("【CS】【VTCam】构建 101 会话：input=YUV " + w + "x" + h
-                    + " | targetYUV + targetJPEG | 无 PRIVATE 流");
+            LogUtil.log("【CS】【VTCam】构建 101 会话：input="
+                    + (inputFormat == ImageFormat.PRIVATE ? "PRIVATE" : "YUV")
+                    + " " + w + "x" + h + " | targetYUV + targetJPEG");
             return vc;
         }
 
         /** 变体 1~5 统一入口：自建 VTCam 会话并经变体 6 重入，跳过原始调用。 */
         private void redirectVtcamSession(Object deviceObj, List<Surface> originals,
                 Executor executor, CameraCaptureSession.StateCallback cb) throws Throwable {
-            SessionConfiguration vc = buildVtcamSessionConfiguration(executor, cb, originals);
-            hookSessionCallback(cb);
-            vtcamApplying = true;
             try {
-                ((CameraDevice) deviceObj).createCaptureSession(vc);
-            } finally {
+                SessionConfiguration vc = buildVtcamSessionConfiguration(executor, cb, originals);
+                hookSessionCallback(cb);
+                vtcamApplying = true;
+                try {
+                    ((CameraDevice) deviceObj).createCaptureSession(vc);
+                } finally {
+                    vtcamApplying = false;
+                }
+                LogUtil.log("【CS】【VTCam】会话已重定向为 VTCam 兼容配置");
+            } catch (Throwable t) {
+                LogUtil.log("【CS】【VTCam】VTCam 会话创建失败，回退到标准替换: " + t);
                 vtcamApplying = false;
+                releaseVtcamResources();
+                throw t;   // re-throw → hook catch block proceeds with original args
             }
-            LogUtil.log("【CS】【VTCam】会话已重定向为 VTCam 兼容配置");
         }
 
         private static Executor executorFromHandler(Handler handler) {
@@ -370,7 +416,11 @@
                             if (image != null) {
                                 boolean queued = false;
                                 try {
-                                    copyYuvFrameToImageWithStride(yuv, image);
+                                    if (image.getFormat() == ImageFormat.PRIVATE) {
+                                        copyYuvToPrivateImage(yuv, image);
+                                    } else {
+                                        copyYuvFrameToImageWithStride(yuv, image);
+                                    }
                                     image.setTimestamp(getNextMonotonicPtsNs());
                                     w.queueInputImage(image);
                                     queued = true;
@@ -2965,6 +3015,48 @@
                             vBuf.put(r * vRowStride + c * vPixelStride, vSrc[srcR * srcUvW + srcC]);
                         }
                     }
+                }
+            }
+        }
+
+        /**
+         * Write YUV planes into a PRIVATE-format Image (single opaque plane).
+         * Qualcomm VTCam expects NV21 layout (Y + interleaved VU) in PRIVATE buffers.
+         */
+        private void copyYuvToPrivateImage(MediaCodecYuvDecoder.YuvFrame yuv, Image image) {
+            Image.Plane[] planes = image.getPlanes();
+            if (planes == null || planes.length == 0) return;
+
+            // If the HAL exposes 3 planes even for PRIVATE, use the standard path
+            if (planes.length >= 3) {
+                copyYuvFrameToImageWithStride(yuv, image);
+                return;
+            }
+
+            ByteBuffer buf = planes[0].getBuffer();
+            if (buf == null || buf.isReadOnly()) return;
+
+            int w = Math.min(image.getWidth(), yuv.width);
+            int h = Math.min(image.getHeight(), yuv.height);
+            int rowStride = planes[0].getRowStride();
+
+            buf.clear();
+
+            // Y plane – row by row respecting stride
+            for (int r = 0; r < h; r++) {
+                buf.position(r * rowStride);
+                buf.put(yuv.yPlane, r * yuv.width, w);
+            }
+
+            // Interleaved VU (NV21) after Y
+            int uvW = w / 2;
+            int uvH = h / 2;
+            int srcUvW = yuv.width / 2;
+            for (int r = 0; r < uvH; r++) {
+                buf.position((h + r) * rowStride);
+                for (int c = 0; c < uvW; c++) {
+                    buf.put(yuv.vPlane[r * srcUvW + c]);
+                    buf.put(yuv.uPlane[r * srcUvW + c]);
                 }
             }
         }
