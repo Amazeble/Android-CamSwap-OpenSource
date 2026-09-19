@@ -985,7 +985,8 @@
             originalNativeToVirtualMap.clear();
         }
 
-        private synchronized Surface createVirtualSurface(int index) {
+        // Replace the existing createVirtualSurface methods with these:
+        private synchronized Surface createVirtualSurface(int index, int width, int height) {
             if (needRecreate) {
                 releaseVirtualSurfaces();
                 needRecreate = false;
@@ -994,7 +995,15 @@
             while (virtualSurfaces.size() <= index) {
                 int texIndex = 15 + virtualSurfaces.size();
                 SurfaceTexture vt = new SurfaceTexture(texIndex);
-                vt.setDefaultBufferSize(1920, 1080);
+                
+                // ★ NEW: Use the original surface's dimensions to prevent HAL BufferQueue mismatch
+                if (width > 0 && height > 0) {
+                    vt.setDefaultBufferSize(width, height);
+                    LogUtil.log("【CS】设置虚拟 SurfaceTexture 尺寸: " + width + "x" + height);
+                } else {
+                    vt.setDefaultBufferSize(1920, 1080); // Fallback
+                }
+                
                 vt.setOnFrameAvailableListener(st -> {
                     try {
                         st.updateTexImage();
@@ -1010,6 +1019,9 @@
         }
 
         private Surface createVirtualSurface() {
+            return createVirtualSurface(0, 0, 0);
+        }
+        private Surface createVirtualSurface() {
             return createVirtualSurface(0);
         }
 
@@ -1017,46 +1029,61 @@
             return rewriteSessionSurfaces(outputs, getCurrentPackageName());
         }
 
-        private List<Surface> rewriteSessionSurfaces(List<?> outputs, String packageName) {
-            LinkedHashSet<Surface> rewritten = new LinkedHashSet<>();
+        private List<OutputConfiguration> rewriteOutputConfigurations(List<?> outputs, String packageName) {
+            List<OutputConfiguration> rewritten = new ArrayList<>();
             sessionKeptYuvSurfaces.clear();
             int virtualIndex = 0;
             if (outputs != null) {
                 for (Object output : outputs) {
-                    if (output instanceof Surface) {
-                        Surface surface = (Surface) output;
-                        boolean isJpeg = isJpegReaderSurface(surface);
-                        boolean isYuv = isYuvReaderSurface(surface) || shouldKeepYuvReaderSurfaceForPackage(surface, packageName);
-                        boolean isPreview = (virtualIndex == 0 && !isJpeg);
+                    if (!(output instanceof OutputConfiguration)) {
+                        continue;
+                    }
+                    OutputConfiguration config = (OutputConfiguration) output;
+                    Surface originalSurface = config.getSurface();
+                    boolean isJpeg = isJpegReaderSurface(originalSurface);
+                    boolean isYuv = isYuvReaderSurface(originalSurface) || shouldKeepYuvReaderSurfaceForPackage(originalSurface, packageName);
+                    boolean isPreview = (virtualIndex == 0 && !isJpeg);
+                    
+                    // ★ NEW: Get original surface size
+                    int[] size = surfaceSizeMap.get(originalSurface);
+                    if (size == null) {
+                        long handle = getSurfaceNativeHandle(originalSurface);
+                        size = surfaceNativeSizeMap.get(handle);
+                    }
+                    int w = (size != null && size.length >= 2) ? size[0] : 0;
+                    int h = (size != null && size.length >= 2) ? size[1] : 0;
 
-                        if (isPreview) {
-                            Surface vSurface = createVirtualSurface(virtualIndex++);
-                            originalToVirtualMap.put(surface, vSurface);
-                            long handle = getSurfaceNativeHandle(surface);
+                    if (isPreview) {
+                        Surface vSurface = createVirtualSurface(virtualIndex++, w, h); // ★ Pass w, h
+                        if (originalSurface != null) {
+                            originalToVirtualMap.put(originalSurface, vSurface);
+                            long handle = getSurfaceNativeHandle(originalSurface);
                             if (handle != 0L) originalNativeToVirtualMap.put(handle, vSurface);
-                            rememberPreviewSurface(surface);
-                            rewritten.add(vSurface);
-                            LogUtil.log("【CS】SessionSurfaces 替换主预览 Surface -> virtual[0]: " + surface);
-                        } else if (isYuv) {
-                            Surface vSurface = createVirtualSurface(virtualIndex++);
-                            originalToVirtualMap.put(surface, vSurface);
-                            long handle = getSurfaceNativeHandle(surface);
-                            if (handle != 0L) originalNativeToVirtualMap.put(handle, vSurface);
-                            rememberReaderPlaybackSurface(surface);
-                            sessionKeptYuvSurfaces.add(surface);
-                            rewritten.add(vSurface);
-                            LogUtil.log("【CS】SessionSurfaces [方案一替身置换] 替换 YUV Reader Surface -> virtual[" + (virtualIndex - 1) + "]: " + surface);
-                        } else {
-                            rewritten.add(surface);
-                            LogUtil.log("【CS】SessionSurfaces 保留真实辅助/JPEG Surface: " + surface);
+                            rememberPreviewSurface(originalSurface);
                         }
+                        rewritten.add(createOutputConfiguration(config, vSurface, packageName));
+                        LogUtil.log("【CS】OutputConfig 替换主预览 Surface -> virtual[0]: " + originalSurface);
+                    } else if (isYuv) {
+                        Surface vSurface = createVirtualSurface(virtualIndex++, w, h); // ★ Pass w, h
+                        if (originalSurface != null) {
+                            originalToVirtualMap.put(originalSurface, vSurface);
+                            long handle = getSurfaceNativeHandle(originalSurface);
+                            if (handle != 0L) originalNativeToVirtualMap.put(handle, vSurface);
+                            rememberReaderPlaybackSurface(originalSurface);
+                            sessionKeptYuvSurfaces.add(originalSurface);
+                        }
+                        rewritten.add(createOutputConfiguration(config, vSurface, packageName));
+                        LogUtil.log("【CS】OutputConfig [方案一替身置换] 替换 YUV Reader Surface -> virtual[" + (virtualIndex - 1) + "]: " + originalSurface);
+                    } else {
+                        rewritten.add(createOutputConfiguration(config, originalSurface, packageName));
+                        LogUtil.log("【CS】OutputConfig 保留真实辅助/JPEG Surface: " + originalSurface);
                     }
                 }
             }
             if (rewritten.isEmpty()) {
-                rewritten.add(createVirtualSurface(0));
+                rewritten.add(new OutputConfiguration(createVirtualSurface()));
             }
-            return new ArrayList<>(rewritten);
+            return rewritten;
         }
 
         public boolean isSurfaceTextureSurface(Surface surface) {

@@ -304,16 +304,28 @@ public class Camera2Handler implements ICameraHandler {
                     boolean hasPending = HookMain.camera2Hook.pendingPlayback;
                     if (thisObject != null && (isNewBuilder || hasPending)) {
                         HookMain.camera2Hook.captureBuilder = (CaptureRequest.Builder) thisObject;
+                        
+                        // ★ NEW: Force cancel AE pre-capture trigger to prevent CameraX from waiting forever
+                        try {
+                            ((CaptureRequest.Builder) thisObject).set(
+                                android.hardware.camera2.CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
+                                android.hardware.camera2.CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_IDLE
+                            );
+                        } catch (Throwable t) {
+                            LogUtil.log("【CS】Hook build 修改 AE_PRECAPTURE_TRIGGER 异常: " + t);
+                        }
+
                         if (!HookGuards.shouldBypass(packageName, HookGuards.getCurrentVideoFile())) {
                             if (HookMain.camera2Hook.isCurrentSessionBypassed()) {
                                 LogUtil.log("【CS】【build】当前会话已旁路，跳过虚拟播放启动");
                             } else {
+                                // ... (keep the rest of your existing logic here)
                                 LogUtil.log("【CS】【build】开始构建捕获请求 "
                                         + (hasPending ? " (延迟重试触发播放) " : " (触发播放) "));
                                 if (VideoManager.getConfig().getBoolean(ConfigManager.KEY_ENABLE_PHOTO_FAKE, false)
                                         && HookMain.camera2Hook.pendingPhotoSurface != null
                                         && HookMain.camera2Hook.isJpegReaderSurface(
-                                        HookMain.camera2Hook.pendingPhotoSurface)) {
+                                                HookMain.camera2Hook.pendingPhotoSurface)) {
                                     LogUtil.log("【CS】【build】已标记等待 JPEG acquire 替换: "
                                             + HookMain.camera2Hook.pendingPhotoSurface);
                                 }
@@ -330,7 +342,6 @@ public class Camera2Handler implements ICameraHandler {
             LogUtil.e("【CS】Hook build 失败: " + t.getMessage(), t);
         }
     }
-
     // =====================================================================
     // 6. CameraManager.getCameraCharacteristics(String)
     //    Force Camera ID 1 (Front) to Portrait (0 degrees)
