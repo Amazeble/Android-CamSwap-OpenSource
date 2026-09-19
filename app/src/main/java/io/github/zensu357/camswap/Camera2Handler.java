@@ -363,15 +363,26 @@ public class Camera2Handler implements ICameraHandler {
             Class<?> captureResultClass = Class.forName("android.hardware.camera2.CaptureResult", false, classLoader);
             Class<?> keyClass = Class.forName("android.hardware.camera2.CaptureResult$Key", false, classLoader);
             Method getMethod = captureResultClass.getMethod("get", keyClass);
+            
             Api101Runtime.requireModule().hook(getMethod).intercept(chain -> {
                 Object[] args = toArgs(chain.getArgs());
                 Object key = args[0];
-                if (key != null && key.equals(android.hardware.camera2.CaptureResult.CONTROL_AE_STATE)) {
-                    return 2; // CONTROL_AE_STATE_CONVERGED
+                
+                if (key != null) {
+                    // ★ 强制 AE 状态为 CONVERGED (2) ★
+                    if (key.equals(android.hardware.camera2.CaptureResult.CONTROL_AE_STATE)) {
+                        LogUtil.log("【CS】伪造 AE_STATE = CONVERGED (2)");
+                        return 2;
+                    }
+                    // ★ 强制 AF 状态为 FOCUSED_LOCKED (4) ★
+                    if (key.equals(android.hardware.camera2.CaptureResult.CONTROL_AF_STATE)) {
+                        LogUtil.log("【CS】伪造 AF_STATE = FOCUSED_LOCKED (4)");
+                        return 4;
+                    }
                 }
                 return chain.proceed(args);
             });
-            LogUtil.log("【CS】已 Hook CaptureResult.get 以强制 AE 收敛");
+            LogUtil.log("【CS】已 Hook CaptureResult.get，强制 AE/AF 收敛");
         } catch (Throwable t) {
             LogUtil.log("【CS】Hook CaptureResult.get 失败: " + t);
         }
