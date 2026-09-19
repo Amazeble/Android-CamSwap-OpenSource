@@ -211,6 +211,7 @@ public class HookMain {
         hookImageReaderAcquireMethods(classLoader);
         hookImageReaderListener(classLoader);
         hookCaptureFailed(classLoader);
+        hookCaptureCallback(classLoader);
     }
 
     /**
@@ -648,7 +649,7 @@ public class HookMain {
     }
 
     private static Object invokeOrigin(XposedInterface.Invoker<?, Method> originInvoker, Object thisObject,
-            Object[] args) throws Throwable {
+                                       Object[] args) throws Throwable {
         try {
             return originInvoker.invoke(thisObject, args);
         } catch (InvocationTargetException e) {
@@ -672,5 +673,62 @@ public class HookMain {
 
     private static Object[] toArgs(List<Object> args) {
         return HookUtils.toArgs(args);
+    }
+
+    private void hookCaptureCallback(ClassLoader classLoader) {
+        try {
+            Class<?> callbackClass = Class.forName("android.hardware.camera2.CameraCaptureSession$CaptureCallback", false, classLoader);
+            Class<?> sessionClass = Class.forName("android.hardware.camera2.CameraCaptureSession", false, classLoader);
+            Class<?> requestClass = Class.forName("android.hardware.camera2.CaptureRequest", false, classLoader);
+            Class<?> totalResultClass = Class.forName("android.hardware.camera2.TotalCaptureResult", false, classLoader);
+            Class<?> resultClass = Class.forName("android.hardware.camera2.CaptureResult", false, classLoader);
+
+            Method onCompleted = callbackClass.getDeclaredMethod("onCaptureCompleted", sessionClass, requestClass, totalResultClass);
+            Api101Runtime.requireModule().hook(onCompleted).intercept(chain -> {
+                Object[] args = chain.getArgs();
+                forceAeConverged(args[2]);
+                return chain.proceed(args);
+            });
+
+            Method onProgressed = callbackClass.getDeclaredMethod("onCaptureProgressed", sessionClass, requestClass, resultClass);
+            Api101Runtime.requireModule().hook(onProgressed).intercept(chain -> {
+                Object[] args = chain.getArgs();
+                forceAeConverged(args[2]);
+                return chain.proceed(args);
+            });
+        } catch (Throwable t) {
+            LogUtil.log("【CS】Hook CaptureCallback 失败: " + t);
+        }
+    }
+
+    private static void forceAeConverged(Object result) {
+        if (result == null) return;
+        try {
+            Class<?> captureResultClass = result.getClass();
+            while (captureResultClass != null && !captureResultClass.getName().equals("android.hardware.camera2.CaptureResult")) {
+                captureResultClass = captureResultClass.getSuperclass();
+            }
+            if (captureResultClass == null) return;
+
+            java.lang.reflect.Field f = captureResultClass.getDeclaredField("mResults");
+            f.setAccessible(true);
+            Object resultMap = f.get(result);
+            
+            android.os.Bundle bundle = null;
+            for (java.lang.reflect.Field field : resultMap.getClass().getDeclaredFields()) {
+                if (field.getType().equals(android.os.Bundle.class)) {
+                    field.setAccessible(true);
+                    bundle = (android.os.Bundle) field.get(resultMap);
+                    break;
+                }
+            }
+            
+            if (bundle != null) {
+                // 2 = CONTROL_AE_STATE_CONVERGED
+                bundle.putInt("android.control.aeState", 2);
+            }
+        } catch (Throwable t) {
+            // Ignore reflection errors
+        }
     }
 }
