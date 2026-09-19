@@ -124,6 +124,8 @@ public class NotificationService extends Service {
                 .setContentIntent(pendingIntent)
                 .setOngoing(true);
                 
+        builder.addAction(new Notification.Action.Builder(null, getString(R.string.notif_action_prev),
+                getPendingIntent(ACTION_PREV_INTERNAL)).build());
         builder.addAction(new Notification.Action.Builder(null, getString(R.string.notif_action_next),
                 getPendingIntent(ACTION_NEXT_INTERNAL)).build());
         builder.addAction(new Notification.Action.Builder(null, rotationLabel,
@@ -139,6 +141,9 @@ public class NotificationService extends Service {
                 getPendingIntent(ACTION_PASSTHROUGH_INTERNAL)).build());
         // 👆 END OF NEW CODE 👆
 
+        builder.addAction(new Notification.Action.Builder(null, getString(R.string.notif_action_exit),
+                getPendingIntent(ACTION_EXIT_INTERNAL)).build());
+                
         return builder.build();
     }
 
