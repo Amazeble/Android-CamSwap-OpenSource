@@ -1026,10 +1026,6 @@
             return createVirtualSurface(index, 0, 0);
         }
 
-        private Surface createVirtualSurface(int index) {
-            return createVirtualSurface(index, 1920, 1080);
-        }
-
         private List<Surface> rewriteSessionSurfaces(List<?> outputs) {
             return rewriteSessionSurfaces(outputs, getCurrentPackageName());
         }

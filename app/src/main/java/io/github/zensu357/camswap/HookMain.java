@@ -685,14 +685,14 @@ public class HookMain {
 
             Method onCompleted = callbackClass.getDeclaredMethod("onCaptureCompleted", sessionClass, requestClass, totalResultClass);
             Api101Runtime.requireModule().hook(onCompleted).intercept(chain -> {
-                Object[] args = chain.getArgs();
+                Object[] args = toArgs(chain.getArgs());
                 forceAeConverged(args[2]);
                 return chain.proceed(args);
             });
 
             Method onProgressed = callbackClass.getDeclaredMethod("onCaptureProgressed", sessionClass, requestClass, resultClass);
             Api101Runtime.requireModule().hook(onProgressed).intercept(chain -> {
-                Object[] args = chain.getArgs();
+                Object[] args = toArgs(chain.getArgs());
                 forceAeConverged(args[2]);
                 return chain.proceed(args);
             });
