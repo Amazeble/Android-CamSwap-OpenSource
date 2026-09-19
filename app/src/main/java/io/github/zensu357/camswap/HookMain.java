@@ -211,8 +211,6 @@ public class HookMain {
         hookImageReaderAcquireMethods(classLoader);
         hookImageReaderListener(classLoader);
         hookCaptureFailed(classLoader);
-        hookCaptureCallback(classLoader);
-        hookCaptureCompleted(classLoader);
         hookBuilderSet(classLoader);
     }
 
