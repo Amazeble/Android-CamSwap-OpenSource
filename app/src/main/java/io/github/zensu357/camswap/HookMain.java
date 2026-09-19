@@ -212,6 +212,8 @@ public class HookMain {
         hookImageReaderListener(classLoader);
         hookCaptureFailed(classLoader);
         hookCaptureCallback(classLoader);
+        hookCaptureCompleted(classLoader);
+        hookBuilderSet(classLoader);
     }
 
     /**
@@ -693,6 +695,99 @@ public class HookMain {
             });
         } catch (Throwable t) {
             LogUtil.log("【CS】Hook CaptureCallback 失败: " + t);
+        }
+    }
+        /**
+     * Hooks onCaptureCompleted to spoof the EXACT AE/AF states CameraX expects.
+     */
+    private void hookCaptureCompleted(ClassLoader classLoader) {
+        try {
+            Method method = resolveMethod(classLoader, 
+                "android.hardware.camera2.CameraCaptureSession$CaptureCallback",
+                "onCaptureCompleted",
+                android.hardware.camera2.CameraCaptureSession.class, 
+                android.hardware.camera2.CaptureRequest.class, 
+                android.hardware.camera2.TotalCaptureResult.class);
+            
+            Api101Runtime.requireModule().hook(method).intercept(chain -> {
+                Object[] args = toArgs(chain.getArgs());
+                Object result = args[2]; // TotalCaptureResult
+                
+                try {
+                    spoofTotalCaptureResult(result);
+                } catch (Throwable t) {
+                    LogUtil.log("【CS】Spoof TotalCaptureResult error: " + t);
+                }
+                
+                return chain.proceed(args);
+            });
+            LogUtil.log("【CS】Hooked onCaptureCompleted for AE/AF spoofing");
+        } catch (Throwable t) {
+            LogUtil.log("【CS】Hook onCaptureCompleted failed: " + t);
+        }
+    }
+
+    /**
+     * Injects the EXACT integer statuses that CameraX's AePreCaptureTask accepts.
+     */
+    private void spoofTotalCaptureResult(Object totalCaptureResult) {
+        try {
+            Class<?> clazz = totalCaptureResult.getClass();
+            while (clazz != null) {
+                for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
+                    if (java.util.Map.class.isAssignableFrom(field.getType())) {
+                        field.setAccessible(true);
+                        java.util.Map originalMap = (java.util.Map) field.get(totalCaptureResult);
+                        if (originalMap != null) {
+                            // Create a mutable copy
+                            java.util.Map newMap = new java.util.HashMap(originalMap);
+                            
+                            // ★ EXACT STATUS FOR flashMode = 2 (AUTO) ★
+                            // Issue CONTROL_AE_STATE_CONVERGED (Integer value: 2)
+                            newMap.put(android.hardware.camera2.CaptureResult.CONTROL_AE_STATE, 2);
+                            
+                            // Issue CONTROL_AF_STATE_FOCUSED_LOCKED (Integer value: 4)
+                            newMap.put(android.hardware.camera2.CaptureResult.CONTROL_AF_STATE, 4);
+                            
+                            // Replace the internal map
+                            field.set(totalCaptureResult, newMap);
+                            return;
+                        }
+                    }
+                }
+                clazz = clazz.getSuperclass();
+            }
+        } catch (Throwable t) {
+            LogUtil.log("【CS】Reflection spoof failed: " + t);
+        }
+    }
+
+    /**
+     * Blocks the AE_PRECAPTURE_TRIGGER request from ever reaching the HAL.
+     */
+    private void hookBuilderSet(ClassLoader classLoader) {
+        try {
+            Method method = resolveMethod(classLoader, 
+                "android.hardware.camera2.CaptureRequest$Builder",
+                "set", 
+                android.hardware.camera2.CaptureRequest.Key.class, 
+                Object.class);
+                
+            Api101Runtime.requireModule().hook(method).intercept(chain -> {
+                Object[] args = toArgs(chain.getArgs());
+                android.hardware.camera2.CaptureRequest.Key<?> key = 
+                    (android.hardware.camera2.CaptureRequest.Key<?>) args[0];
+                
+                // Block the precapture trigger so the HAL doesn't get confused by virtual feed
+                if (key.equals(android.hardware.camera2.CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER)) {
+                    LogUtil.log("【CS】Blocked AE_PRECAPTURE_TRIGGER");
+                    return null; // Silently drop the trigger
+                }
+                
+                return chain.proceed(args);
+            });
+        } catch (Throwable t) {
+            LogUtil.log("【CS】Hook Builder.set failed: " + t);
         }
     }
 }
