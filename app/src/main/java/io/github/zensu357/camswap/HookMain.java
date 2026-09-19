@@ -685,50 +685,14 @@ public class HookMain {
 
             Method onCompleted = callbackClass.getDeclaredMethod("onCaptureCompleted", sessionClass, requestClass, totalResultClass);
             Api101Runtime.requireModule().hook(onCompleted).intercept(chain -> {
-                Object[] args = toArgs(chain.getArgs());
-                forceAeConverged(args[2]);
-                return chain.proceed(args);
+                return chain.proceed(toArgs(chain.getArgs()));
             });
-
             Method onProgressed = callbackClass.getDeclaredMethod("onCaptureProgressed", sessionClass, requestClass, resultClass);
             Api101Runtime.requireModule().hook(onProgressed).intercept(chain -> {
-                Object[] args = toArgs(chain.getArgs());
-                forceAeConverged(args[2]);
-                return chain.proceed(args);
+                return chain.proceed(toArgs(chain.getArgs()));
             });
         } catch (Throwable t) {
             LogUtil.log("【CS】Hook CaptureCallback 失败: " + t);
-        }
-    }
-
-    private static void forceAeConverged(Object result) {
-        if (result == null) return;
-        try {
-            Class<?> captureResultClass = result.getClass();
-            while (captureResultClass != null && !captureResultClass.getName().equals("android.hardware.camera2.CaptureResult")) {
-                captureResultClass = captureResultClass.getSuperclass();
-            }
-            if (captureResultClass == null) return;
-
-            java.lang.reflect.Field f = captureResultClass.getDeclaredField("mResults");
-            f.setAccessible(true);
-            Object resultMap = f.get(result);
-            
-            android.os.Bundle bundle = null;
-            for (java.lang.reflect.Field field : resultMap.getClass().getDeclaredFields()) {
-                if (field.getType().equals(android.os.Bundle.class)) {
-                    field.setAccessible(true);
-                    bundle = (android.os.Bundle) field.get(resultMap);
-                    break;
-                }
-            }
-            
-            if (bundle != null) {
-                // 2 = CONTROL_AE_STATE_CONVERGED
-                bundle.putInt("android.control.aeState", 2);
-            }
-        } catch (Throwable t) {
-            // Ignore reflection errors
         }
     }
 }

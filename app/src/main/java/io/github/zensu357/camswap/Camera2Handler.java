@@ -30,7 +30,8 @@ public class Camera2Handler implements ICameraHandler {
         final String packageName = packageContext.hostPackageName;
         
         hookGetCameraIdList(classLoader, packageName);
-        hookGetCameraCharacteristics(classLoader, packageName); 
+        hookCameraCharacteristicsGet(classLoader);
+        hookCaptureResultGet(classLoader);
         hookOpenCamera3Arg(classLoader, packageName);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             hookOpenCameraExecutor(classLoader, packageName);
@@ -304,17 +305,6 @@ public class Camera2Handler implements ICameraHandler {
                     boolean hasPending = HookMain.camera2Hook.pendingPlayback;
                     if (thisObject != null && (isNewBuilder || hasPending)) {
                         HookMain.camera2Hook.captureBuilder = (CaptureRequest.Builder) thisObject;
-                        
-                        // ★ NEW: Force cancel AE pre-capture trigger to prevent CameraX from waiting forever
-                        try {
-                            ((CaptureRequest.Builder) thisObject).set(
-                                android.hardware.camera2.CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
-                                android.hardware.camera2.CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_IDLE
-                            );
-                        } catch (Throwable t) {
-                            LogUtil.log("【CS】Hook build 修改 AE_PRECAPTURE_TRIGGER 异常: " + t);
-                        }
-
                         if (!HookGuards.shouldBypass(packageName, HookGuards.getCurrentVideoFile())) {
                             if (HookMain.camera2Hook.isCurrentSessionBypassed()) {
                                 LogUtil.log("【CS】【build】当前会话已旁路，跳过虚拟播放启动");
@@ -346,35 +336,44 @@ public class Camera2Handler implements ICameraHandler {
     // 6. CameraManager.getCameraCharacteristics(String)
     //    Force Camera ID 1 (Front) to Portrait (0 degrees)
     // =====================================================================
-    private void hookGetCameraCharacteristics(ClassLoader classLoader, String packageName) {
+    private void hookCameraCharacteristicsGet(ClassLoader classLoader) {
         try {
-            Method method = resolveMethod(classLoader,
-                    "android.hardware.camera2.CameraManager",
-                    "getCameraCharacteristics", String.class);
-            Api101Runtime.requireModule().hook(method).intercept(chain -> {
+            Class<?> ccClass = Class.forName("android.hardware.camera2.CameraCharacteristics", false, classLoader);
+            Class<?> keyClass = Class.forName("android.hardware.camera2.CameraCharacteristics$Key", false, classLoader);
+            Method getMethod = ccClass.getMethod("get", keyClass);
+            Api101Runtime.requireModule().hook(getMethod).intercept(chain -> {
                 Object[] args = toArgs(chain.getArgs());
-                Object result = chain.proceed(args);
-                try {
-                    String cameraId = (String) args[0];
-                    // Force Camera ID 1 (Front) to Portrait orientation (0 degrees)
-                    if ("1".equals(cameraId) && result != null) {
-                        java.lang.reflect.Field mValuesField = android.hardware.camera2.CameraCharacteristics.class.getDeclaredField("mValues");
-                        mValuesField.setAccessible(true);
-                        @SuppressWarnings("unchecked")
-                        java.util.HashMap<android.hardware.camera2.CameraCharacteristics.Key<?>, Object> mValues = 
-                            (java.util.HashMap<android.hardware.camera2.CameraCharacteristics.Key<?>, Object>) mValuesField.get(result);
-                        if (mValues != null) {
-                            mValues.put(android.hardware.camera2.CameraCharacteristics.SENSOR_ORIENTATION, 0);
-                            LogUtil.log("【CS】强制 Camera ID 1 (前置) SENSOR_ORIENTATION 为 0 (Portrait)");
-                        }
+                Object key = args[0];
+                if (key != null && key.equals(android.hardware.camera2.CameraCharacteristics.SENSOR_ORIENTATION)) {
+                    String currentCameraId = HookMain.camera2Hook.getCurrentCameraId();
+                    if ("1".equals(currentCameraId)) {
+                        return 0;
                     }
-                } catch (Throwable t) {
-                    LogUtil.log("【CS】getCameraCharacteristics 修改异常: " + t);
                 }
-                return result;
+                return chain.proceed(args);
             });
+            LogUtil.log("【CS】已 Hook CameraCharacteristics.get");
         } catch (Throwable t) {
-            LogUtil.log("【CS】Hook getCameraCharacteristics 失败: " + t);
+            LogUtil.log("【CS】Hook CameraCharacteristics.get 失败: " + t);
+        }
+    }
+
+    private void hookCaptureResultGet(ClassLoader classLoader) {
+        try {
+            Class<?> captureResultClass = Class.forName("android.hardware.camera2.CaptureResult", false, classLoader);
+            Class<?> keyClass = Class.forName("android.hardware.camera2.CaptureResult$Key", false, classLoader);
+            Method getMethod = captureResultClass.getMethod("get", keyClass);
+            Api101Runtime.requireModule().hook(getMethod).intercept(chain -> {
+                Object[] args = toArgs(chain.getArgs());
+                Object key = args[0];
+                if (key != null && key.equals(android.hardware.camera2.CaptureResult.CONTROL_AE_STATE)) {
+                    return 2; // CONTROL_AE_STATE_CONVERGED
+                }
+                return chain.proceed(args);
+            });
+            LogUtil.log("【CS】已 Hook CaptureResult.get 以强制 AE 收敛");
+        } catch (Throwable t) {
+            LogUtil.log("【CS】Hook CaptureResult.get 失败: " + t);
         }
     }
     // ================================================================
