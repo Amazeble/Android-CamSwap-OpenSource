@@ -2544,7 +2544,16 @@
                 lastYuvFrameWasFallback = true;
                 return null;
             }
-            GLVideoRenderer activeRenderer = getPreferredYuvRenderer();
+            // ★ 优先使用 MediaCodec 解码器直出帧（绕过 GL 渲染器分辨率瓶颈）
+        Bitmap codecFrame = captureFrameFromCodecDecoder(targetWidth, targetHeight, rotationOverride);
+        if (codecFrame != null) {
+            lastYuvFrameWasFallback = false;
+            lastYuvFrameWasCodec = true;
+            return codecFrame;
+        }
+        lastYuvFrameWasCodec = false;
+
+        GLVideoRenderer activeRenderer = getPreferredYuvRenderer();
             if (activeRenderer != null) {
                 int captureWidth = activeRenderer.getSurfaceWidth();
                 int captureHeight = activeRenderer.getSurfaceHeight();
@@ -2579,7 +2588,109 @@
         private MediaMetadataRetriever cachedRetriever;
         private String cachedRetrieverPath;
 
-        private Bitmap captureFrameFromVideoFile(int targetWidth, int targetHeight) {
+        
+    /**
+     * 从 MediaCodec YUV 解码器获取帧并转为 Bitmap（用于 JPEG 拍照替换）。
+     * 绕过 GL 渲染器的分辨率瓶颈，直接使用解码器原始分辨率。
+     *
+     * @param rotationOverride -1=不旋转, 0/90/180/270=指定角度
+     * @return 缩放后的 Bitmap，失败返回 null
+     */
+    private Bitmap captureFrameFromCodecDecoder(int targetWidth, int targetHeight, int rotationOverride) {
+        MediaCodecYuvDecoder dec = yuvDecoder;
+        if (dec == null || !dec.isRunning()) {
+            return null;
+        }
+        MediaCodecYuvDecoder.YuvFrame yuv = dec.acquireLatestFrame();
+        if (yuv == null || yuv.yPlane == null || yuv.uPlane == null || yuv.vPlane == null) {
+            return null;
+        }
+        try {
+            int srcW = yuv.width;
+            int srcH = yuv.height;
+
+            // 构建 NV21 字节数组
+            int yLen = srcW * srcH;
+            int uvLen = (srcW / 2) * (srcH / 2);
+            byte[] nv21 = new byte[yLen + uvLen * 2];
+            System.arraycopy(yuv.yPlane, 0, nv21, 0, yLen);
+            int uvIndex = yLen;
+            for (int i = 0; i < uvLen; i++) {
+                nv21[uvIndex++] = yuv.vPlane[i];
+                if (i < yuv.uPlane.length) {
+                    nv21[uvIndex++] = yuv.uPlane[i];
+                }
+            }
+
+            // 如果有旋转，先旋转再转 Bitmap
+            if (rotationOverride > 0) {
+                nv21 = rotateNV21ForJpeg(nv21, srcW, srcH, rotationOverride);
+                if (rotationOverride == 90 || rotationOverride == 270) {
+                    int tmp = srcW; srcW = srcH; srcH = tmp;
+                }
+            }
+
+            // YuvImage -> JPEG bytes -> Bitmap
+            android.graphics.YuvImage yuvImage = new android.graphics.YuvImage(
+                    nv21, android.graphics.ImageFormat.NV21, srcW, srcH, null);
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            yuvImage.compressToJpeg(new android.graphics.Rect(0, 0, srcW, srcH), 95, baos);
+            byte[] jpegBytes = baos.toByteArray();
+            Bitmap raw = android.graphics.BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.length);
+            if (raw == null) return null;
+
+            // 缩放到目标尺寸
+            if (raw.getWidth() != targetWidth || raw.getHeight() != targetHeight) {
+                Bitmap scaled = Bitmap.createScaledBitmap(raw, targetWidth, targetHeight, true);
+                raw.recycle();
+                return scaled;
+            }
+            return raw;
+        } catch (Exception e) {
+            LogUtil.log("【CS】captureFrameFromCodecDecoder 异常: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * 旋转 NV21 数据（用于 JPEG 拍照，独立于 GL 渲染器）
+     */
+    private byte[] rotateNV21ForJpeg(byte[] input, int width, int height, int rotation) {
+        if (rotation == 0) return input;
+        byte[] output = new byte[input.length];
+        int frameSize = width * height;
+        if (rotation == 90) {
+            int k = 0;
+            for (int x = 0; x < width; x++)
+                for (int y = height - 1; y >= 0; y--)
+                    output[k++] = input[y * width + x];
+            for (int x = 0; x < width; x += 2)
+                for (int y = height / 2 - 1; y >= 0; y--) {
+                    output[k++] = input[frameSize + y * width + x];
+                    output[k++] = input[frameSize + y * width + x + 1];
+                }
+        } else if (rotation == 180) {
+            int k = 0;
+            for (int i = frameSize - 1; i >= 0; i--) output[k++] = input[i];
+            for (int i = input.length - 2; i >= frameSize; i -= 2) {
+                output[k++] = input[i];
+                output[k++] = input[i + 1];
+            }
+        } else if (rotation == 270) {
+            int k = 0;
+            for (int x = width - 1; x >= 0; x--)
+                for (int y = 0; y < height; y++)
+                    output[k++] = input[y * width + x];
+            for (int x = width - 2; x >= 0; x -= 2)
+                for (int y = 0; y < height / 2; y++) {
+                    output[k++] = input[frameSize + y * width + x];
+                    output[k++] = input[frameSize + y * width + x + 1];
+                }
+        }
+        return output;
+    }
+
+    private Bitmap captureFrameFromVideoFile(int targetWidth, int targetHeight) {
             // Stream mode: MediaMetadataRetriever cannot work with network URLs.
             // Return null to let caller use GL capture or last-frame cache.
             if (VideoManager.isStreamMode()) {
