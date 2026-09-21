@@ -19,39 +19,48 @@ import io.github.zensu357.camswap.utils.LogUtil;
 public class NotificationService extends Service {
     private static final String CHANNEL_ID = "camswap_control_channel";
     private static final int NOTIFICATION_ID = 1001;
-    private static final String ACTION_PREV_INTERNAL = "io.github.zensu357.camswap.action.PREV_INTERNAL";
+
     private static final String ACTION_NEXT_INTERNAL = "io.github.zensu357.camswap.action.NEXT_INTERNAL";
     private static final String ACTION_ROTATE_INTERNAL = "io.github.zensu357.camswap.action.ROTATE_INTERNAL";
+    private static final String ACTION_PASSTHROUGH_INTERNAL = "io.github.zensu357.camswap.action.PASSTHROUGH_INTERNAL";
     private static final String ACTION_EXIT_INTERNAL = "io.github.zensu357.camswap.action.EXIT_INTERNAL";
 
     private ConfigManager configManager;
     private int currentRotationOffset = 0;
+    private boolean isPassthrough = false;
 
     private BroadcastReceiver controlReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             android.util.Log.d("Camswap_NOTIF", "收到操作指令: " + action);
+
             if (ACTION_EXIT_INTERNAL.equals(action)) {
                 stopSelf();
-            } else if (ACTION_PREV_INTERNAL.equals(action)) {
-                handleSwitch(false);
             } else if (ACTION_NEXT_INTERNAL.equals(action)) {
-                handleSwitch(true);
+                handleSwitch();
             } else if (ACTION_ROTATE_INTERNAL.equals(action)) {
-                // 循环切换旋转偏移: 0 -> 90 -> 180 -> 270 -> 0
                 currentRotationOffset = (currentRotationOffset + 90) % 360;
                 if (configManager != null) {
-                    // 先强制重新加载最新配置，避免用过时的 configData 覆盖文件导致其他设置丢失
                     configManager.forceReload();
                     configManager.setInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, currentRotationOffset);
                 }
-                // 更新通知显示
                 NotificationManager nm = getSystemService(NotificationManager.class);
                 if (nm != null) {
                     nm.notify(NOTIFICATION_ID, buildNotification());
                 }
                 android.util.Log.d("Camswap_NOTIF", "旋转偏移已切换为: " + currentRotationOffset + "°");
+            } else if (ACTION_PASSTHROUGH_INTERNAL.equals(action)) {
+                isPassthrough = !isPassthrough;
+                if (configManager != null) {
+                    configManager.forceReload();
+                    configManager.setBoolean(ConfigManager.KEY_DISABLE_MODULE, isPassthrough);
+                }
+                NotificationManager nm = getSystemService(NotificationManager.class);
+                if (nm != null) {
+                    nm.notify(NOTIFICATION_ID, buildNotification());
+                }
+                android.util.Log.d("Camswap_NOTIF", "Passthrough 已切换为: " + isPassthrough);
             }
         }
     };
@@ -69,12 +78,13 @@ public class NotificationService extends Service {
         configManager = new ConfigManager();
         configManager.setContext(this);
         currentRotationOffset = configManager.getInt(ConfigManager.KEY_VIDEO_ROTATION_OFFSET, 0);
+        isPassthrough = configManager.getBoolean(ConfigManager.KEY_DISABLE_MODULE, false);
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_EXIT_INTERNAL);
-        filter.addAction(ACTION_PREV_INTERNAL);
         filter.addAction(ACTION_NEXT_INTERNAL);
         filter.addAction(ACTION_ROTATE_INTERNAL);
+        filter.addAction(ACTION_PASSTHROUGH_INTERNAL);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(controlReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -111,23 +121,25 @@ public class NotificationService extends Service {
                 PendingIntent.FLAG_IMMUTABLE);
 
         String rotationLabel = getString(R.string.notif_rotate_label) + currentRotationOffset + "°";
+        String passthroughLabel = isPassthrough
+                ? getString(R.string.notif_passthrough_on)
+                : getString(R.string.notif_passthrough_off);
 
         Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
-                .setContentText(getString(R.string.notif_rotate_offset) + currentRotationOffset + "°")
+                .setContentText(getString(R.string.notif_rotate_offset) + currentRotationOffset + "°"
+                        + (isPassthrough ? " | " + getString(R.string.notif_passthrough_on) : ""))
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true);
 
-        builder.addAction(new Notification.Action.Builder(null, getString(R.string.notif_action_prev),
-                getPendingIntent(ACTION_PREV_INTERNAL)).build());
-
+        // Next | Rotate | Passthrough | Exit
         builder.addAction(new Notification.Action.Builder(null, getString(R.string.notif_action_next),
                 getPendingIntent(ACTION_NEXT_INTERNAL)).build());
-
         builder.addAction(new Notification.Action.Builder(null, rotationLabel,
                 getPendingIntent(ACTION_ROTATE_INTERNAL)).build());
-
+        builder.addAction(new Notification.Action.Builder(null, passthroughLabel,
+                getPendingIntent(ACTION_PASSTHROUGH_INTERNAL)).build());
         builder.addAction(new Notification.Action.Builder(null, getString(R.string.notif_action_exit),
                 getPendingIntent(ACTION_EXIT_INTERNAL)).build());
 
@@ -141,8 +153,8 @@ public class NotificationService extends Service {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
-    private void handleSwitch(boolean next) {
-        boolean changed = ControlActionHelper.switchVideo(this, next);
+    private void handleSwitch() {
+        boolean changed = ControlActionHelper.switchVideo(this, true);
         if (!changed) {
             LogUtil.log("【CS】通知栏切换视频未发生变化");
         }
@@ -157,7 +169,6 @@ public class NotificationService extends Service {
             channel.setDescription(getString(R.string.notif_channel_desc));
             channel.enableLights(false);
             channel.enableVibration(false);
-
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);

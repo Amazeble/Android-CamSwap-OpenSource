@@ -2482,6 +2482,7 @@
 
         /** 媒体源变更时重启解码器（切换视频/旋转等） */
         public void restartYuvDecoderForSourceChange() {
+        io.github.zensu357.camswap.CaptureGate.markNotReady();
             MediaCodecYuvDecoder dec = yuvDecoder;
             if (dec != null) {
                 dec.stop();

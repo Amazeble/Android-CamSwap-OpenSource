@@ -34,6 +34,7 @@ public class Camera2Handler implements ICameraHandler {
             hookOpenCameraExecutor(classLoader, packageName);
         }
         hookAddTarget(classLoader, packageName);
+        hookCaptureGate(classLoader, packageName);
         hookRemoveTarget(classLoader, packageName);
         hookBuild(classLoader, packageName);
 
@@ -288,6 +289,111 @@ public class Camera2Handler implements ICameraHandler {
     // ================================================================
     // Utilities
     // ================================================================
+        private void hookCaptureGate(final ClassLoader classLoader, final String packageName) {
+        try {
+            final Class<?> captureRequestClass =
+                    classLoader.loadClass("android.hardware.camera2.CaptureRequest");
+            final Class<?> captureCallbackClass =
+                    classLoader.loadClass("android.hardware.camera2.CameraCaptureSession$CaptureCallback");
+            final Class<?> handlerClass = android.os.Handler.class;
+
+            java.lang.reflect.Method capture = resolveMethod(
+                    classLoader,
+                    "android.hardware.camera2.CameraCaptureSession",
+                    "capture",
+                    captureRequestClass,
+                    captureCallbackClass,
+                    handlerClass
+            );
+
+            io.github.zensu357.camswap.api101.Api101Runtime.requireModule()
+                    .hook(capture)
+                    .intercept(chain -> {
+                        Object[] args = toArgs(chain.getArgs());
+                        try {
+                            Object sessionObj = chain.getThisObject();
+
+                            if (sessionObj instanceof android.hardware.camera2.CameraCaptureSession
+                                    && args.length >= 3
+                                    && args[0] instanceof android.hardware.camera2.CaptureRequest
+                                    && args[1] instanceof android.hardware.camera2.CameraCaptureSession.CaptureCallback) {
+
+                                android.hardware.camera2.CameraCaptureSession session =
+                                        (android.hardware.camera2.CameraCaptureSession) sessionObj;
+                                android.hardware.camera2.CaptureRequest request =
+                                        (android.hardware.camera2.CaptureRequest) args[0];
+                                android.hardware.camera2.CameraCaptureSession.CaptureCallback callback =
+                                        (android.hardware.camera2.CameraCaptureSession.CaptureCallback) args[1];
+                                android.os.Handler handler =
+                                        args[2] instanceof android.os.Handler ? (android.os.Handler) args[2] : null;
+
+                                args[1] = io.github.zensu357.camswap.CaptureGate.wrapCallback(
+                                        session,
+                                        request,
+                                        callback,
+                                        handler
+                                );
+                            }
+                        } catch (Throwable t) {
+                            io.github.zensu357.camswap.utils.LogUtil.log(
+                                    "【CS】【CaptureGate】capture hook error: " + t
+                            );
+                        }
+                        return chain.proceed(args);
+                    });
+
+            java.lang.reflect.Method captureBurst = resolveMethod(
+                    classLoader,
+                    "android.hardware.camera2.CameraCaptureSession",
+                    "captureBurst",
+                    java.util.List.class,
+                    captureCallbackClass,
+                    handlerClass
+            );
+
+            io.github.zensu357.camswap.api101.Api101Runtime.requireModule()
+                    .hook(captureBurst)
+                    .intercept(chain -> {
+                        Object[] args = toArgs(chain.getArgs());
+                        try {
+                            Object sessionObj = chain.getThisObject();
+
+                            if (sessionObj instanceof android.hardware.camera2.CameraCaptureSession
+                                    && args.length >= 3
+                                    && args[0] instanceof java.util.List
+                                    && args[1] instanceof android.hardware.camera2.CameraCaptureSession.CaptureCallback) {
+
+                                android.hardware.camera2.CameraCaptureSession session =
+                                        (android.hardware.camera2.CameraCaptureSession) sessionObj;
+                                java.util.List<?> requests = (java.util.List<?>) args[0];
+                                android.hardware.camera2.CameraCaptureSession.CaptureCallback callback =
+                                        (android.hardware.camera2.CameraCaptureSession.CaptureCallback) args[1];
+                                android.os.Handler handler =
+                                        args[2] instanceof android.os.Handler ? (android.os.Handler) args[2] : null;
+
+                                args[1] = io.github.zensu357.camswap.CaptureGate.wrapBurstCallback(
+                                        session,
+                                        requests,
+                                        callback,
+                                        handler
+                                );
+                            }
+                        } catch (Throwable t) {
+                            io.github.zensu357.camswap.utils.LogUtil.log(
+                                    "【CS】【CaptureGate】captureBurst hook error: " + t
+                            );
+                        }
+                        return chain.proceed(args);
+                    });
+
+            io.github.zensu357.camswap.utils.LogUtil.log("【CS】【CaptureGate】capture callback hooks installed");
+        } catch (Throwable t) {
+            io.github.zensu357.camswap.utils.LogUtil.log(
+                    "【CS】【CaptureGate】hookCaptureGate failed: " + t
+            );
+        }
+    }
+
     private static Method resolveMethod(ClassLoader classLoader, String className,
             String methodName, Class<?>... parameterTypes) throws Exception {
         return HookUtils.resolveMethod(classLoader, className, methodName, parameterTypes);

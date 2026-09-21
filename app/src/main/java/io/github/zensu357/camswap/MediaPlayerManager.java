@@ -342,6 +342,7 @@ public final class MediaPlayerManager {
 
     /** Restart all active players with current video/stream. */
     void restartAll() {
+        io.github.zensu357.camswap.CaptureGate.markNotReady();
         synchronized (mediaLock) {
             if (isStreamMode()) {
                 // Stream mode: restart the single stream backend
@@ -424,6 +425,7 @@ public final class MediaPlayerManager {
 
     /** Release Camera2 players and renderers (called from onOpened). */
     void releaseCamera2Resources() {
+        io.github.zensu357.camswap.CaptureGate.markNotReady();
         releaseStreamBackend();
         GLVideoRenderer.releaseSafely(c2_renderer);
         c2_renderer = null;
@@ -530,6 +532,7 @@ public final class MediaPlayerManager {
             player.setOnInfoListener((mp, what, extra) -> {
                 if (what == android.media.MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
                     LogUtil.log("【CS】【播放器】[" + tag + "] 接收到首帧渲染就绪信号 (MEDIA_INFO_VIDEO_RENDERING_START)！画面已成功上屏！");
+                    io.github.zensu357.camswap.CaptureGate.markReady();
                 } else if (what == android.media.MediaPlayer.MEDIA_INFO_BUFFERING_START) {
                     LogUtil.log("【CS】【播放器】[" + tag + "] 正在缓冲数据...");
                 } else if (what == android.media.MediaPlayer.MEDIA_INFO_BUFFERING_END) {

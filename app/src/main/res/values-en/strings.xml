@@ -184,5 +184,3 @@
     <string name="root_mode_warning_dialog_title">Notice</string>
     <string name="root_mode_warning_dialog_text">This mode may not work on higher Android versions</string>
 </resources>
-    <string name=notif_passthrough_on>Passthrough On</string>
-    <string name=notif_passthrough_off>Passthrough Off</string>

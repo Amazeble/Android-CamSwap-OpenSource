@@ -124,7 +124,6 @@
     <!-- Notification Service -->
     <string name="notif_rotate_label">旋转:</string>
     <string name="notif_rotate_offset">旋转偏移: </string>
-    <string name="notif_action_prev">上一条</string>
     <string name="notif_action_next">下一条</string>
     <string name="notif_action_exit">退出</string>
     <string name="notif_channel_name">Camswap控制服务</string>
@@ -184,5 +183,3 @@
     <string name="root_mode_warning_dialog_title">提示</string>
     <string name="root_mode_warning_dialog_text">该模式在高版本安卓可能不起作用</string>
 </resources>
-    <string name=notif_passthrough_on>Passthrough On</string>
-    <string name=notif_passthrough_off>Passthrough Off</string>
