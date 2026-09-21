@@ -20,3 +20,5 @@
     <string name="settings_clear_logs_success">日誌緩存已清空</string>
     <string name="settings_clear_logs_failed">清空日誌失敗，請檢查Root權限</string>
 </resources>
+    <string name=notif_passthrough_on>Passthrough On</string>
+    <string name=notif_passthrough_off>Passthrough Off</string>
