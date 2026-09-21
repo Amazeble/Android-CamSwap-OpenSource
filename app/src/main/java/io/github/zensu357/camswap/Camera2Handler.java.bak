@@ -299,7 +299,7 @@ public class Camera2Handler implements ICameraHandler {
 
             java.lang.reflect.Method capture = resolveMethod(
                     classLoader,
-                    "android.hardware.camera2.impl.CameraCaptureSessionImpl",
+                    "android.hardware.camera2.CameraCaptureSession",
                     "capture",
                     captureRequestClass,
                     captureCallbackClass,
@@ -344,7 +344,7 @@ public class Camera2Handler implements ICameraHandler {
 
             java.lang.reflect.Method captureBurst = resolveMethod(
                     classLoader,
-                    "android.hardware.camera2.impl.CameraCaptureSessionImpl",
+                    "android.hardware.camera2.CameraCaptureSession",
                     "captureBurst",
                     java.util.List.class,
                     captureCallbackClass,
