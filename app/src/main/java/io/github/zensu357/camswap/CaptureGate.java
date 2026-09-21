@@ -123,10 +123,14 @@ public final class CaptureGate {
             return callback;
         }
 
-        if (!isPreCaptureRequest(request)) {
-            return callback;
+            if (!isPreCaptureRequest(request)) {
+            // ★ FIX: Wrap ALL capture callbacks, not just pre-capture.
+            // CameraX may skip pre-capture (AE already converged) and go
+            // directly to still capture. We still need to intercept the
+            // still capture callback to ensure the app processes the result.
+            LogUtil.log(TAG + "capture callback passthrough (not pre-capture), wrapping as still-capture");
+            return new GateCaptureCallback(callback, handler, "still-capture");
         }
-
         LogUtil.log(TAG + "wrapping pre-capture callback");
         return new GateCaptureCallback(callback, handler, "pre-capture");
     }
@@ -153,10 +157,11 @@ public final class CaptureGate {
             }
         }
 
-        if (!hasPreCapture) {
-            return callback;
+            if (!hasPreCapture) {
+            // ★ FIX: Wrap ALL burst capture callbacks too
+            LogUtil.log(TAG + "burst callback passthrough (not pre-capture), wrapping as still-capture-burst");
+            return new GateCaptureCallback(callback, handler, "still-capture-burst");
         }
-
         LogUtil.log(TAG + "wrapping pre-capture burst callback");
         return new GateCaptureCallback(callback, handler, "pre-capture-burst");
     }

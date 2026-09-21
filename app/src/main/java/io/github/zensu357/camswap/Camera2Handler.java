@@ -404,7 +404,9 @@ public class Camera2Handler implements ICameraHandler {
                         Object[] args = toArgs(chain.getArgs());
                         try {
                             Object sessionObj = chain.getThisObject();
-                            if (sessionObj instanceof android.hardware.camera2.CameraCaptureSession
+                            io.github.zensu357.camswap.utils.LogUtil.log(
+                            "【CS】【CaptureGate】captureSingleRequest intercepted, args.length=" + args.length);
+                        if (sessionObj instanceof android.hardware.camera2.CameraCaptureSession
                                 && args.length >= 3
                                 && args[0] instanceof android.hardware.camera2.CaptureRequest
                                 && args[2] instanceof android.hardware.camera2.CameraCaptureSession.CaptureCallback) {
