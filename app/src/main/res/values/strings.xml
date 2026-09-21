@@ -126,6 +126,8 @@
     <string name="notif_rotate_offset">旋转偏移: </string>
     <string name="notif_action_next">下一条</string>
     <string name="notif_action_exit">退出</string>
+    <string name="notif_passthrough_on">直通开启</string>
+    <string name="notif_passthrough_off">直通关闭</string>
     <string name="notif_channel_name">Camswap控制服务</string>
     <string name="notif_channel_desc">显示Camswap视频切换控制</string>
     <string name="overlay_action_rotate">旋转</string>

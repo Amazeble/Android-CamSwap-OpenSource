@@ -127,6 +127,8 @@
     <string name="notif_action_prev">Previous</string>
     <string name="notif_action_next">Next</string>
     <string name="notif_action_exit">Exit</string>
+    <string name="notif_passthrough_on">Passthrough On</string>
+    <string name="notif_passthrough_off">Passthrough Off</string>
     <string name="notif_channel_name">Camswap Control Service</string>
     <string name="notif_channel_desc">Show Camswap video control</string>
     <string name="overlay_action_rotate">Rotate</string>
