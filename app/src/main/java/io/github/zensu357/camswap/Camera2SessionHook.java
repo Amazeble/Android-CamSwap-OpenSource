@@ -1639,7 +1639,7 @@
                 }
             }
             imageWriterMap.clear();
-            pendingJpegSurfaces.clear();
+            closeJpegBridge(); pendingJpegSurfaces.clear();
             pendingPhotoSurface = null;
             bypassCurrentSession = false;
             closeFakeYuvBridges();
@@ -2863,7 +2863,60 @@
             return samples == 0 || darkSamples * 100 / samples >= 85;
         }
 
-        public boolean replaceJpegImageIfNeeded(Object imageReader, Image image) {
+        // ===== JPEG bridge fields (vcam-style ImageWriter pump) =====
+    private ImageReader jpegBridgeReader;
+    private ImageWriter jpegBridgeWriter;
+
+    public Image acquireFakeJpegImage(ImageReader appReader, Surface appSurface) {
+        Image input = null;
+        try {
+            int width = appReader.getWidth();
+            int height = appReader.getHeight();
+            if (width <= 0 || height <= 0) return null;
+            if (jpegBridgeReader == null
+                    || jpegBridgeReader.getWidth() != width
+                    || jpegBridgeReader.getHeight() != height) {
+                closeJpegBridge();
+                jpegBridgeReader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 2);
+                jpegBridgeWriter = ImageWriter.newInstance(jpegBridgeReader.getSurface(), 2);
+            }
+            input = jpegBridgeWriter.dequeueInputImage();
+            if (input == null) return null;
+            ByteBuffer buf = input.getPlanes()[0].getBuffer();
+            byte[] jpegBytes = createFakeJpegBytes(appSurface, buf.capacity());
+            if (jpegBytes == null || jpegBytes.length == 0) {
+                try { input.close(); } catch (Throwable ignored) {}
+                return null;
+            }
+            buf.clear();
+            buf.put(jpegBytes);
+            buf.flip();
+            input.setTimestamp(getNextMonotonicPtsNs());
+            jpegBridgeWriter.queueInputImage(input);
+            input = null; // ownership transferred to writer
+            pendingJpegSurfaces.remove(appSurface);
+            pendingPhotoSurface = null;
+            LogUtil.log("【CS】成功以 ImageWriter 泵入 JPEG 伪帧: 大小=" + jpegBytes.length + " 字节");
+            return jpegBridgeReader.acquireNextImage();
+        } catch (Exception e) {
+            LogUtil.log("【CS】JPEG 伪帧桥接失败: " + e);
+            if (input != null) { try { input.close(); } catch (Throwable ignored) {} }
+            return null;
+        }
+    }
+
+    private void closeJpegBridge() {
+        try { if (jpegBridgeWriter != null) jpegBridgeWriter.close(); } catch (Throwable ignored) {}
+        try { if (jpegBridgeReader != null) jpegBridgeReader.close(); } catch (Throwable ignored) {}
+        jpegBridgeWriter = null;
+        jpegBridgeReader = null;
+    }
+
+    public boolean replaceJpegImageIfNeeded(Object imageReader, Image image) {
+        // CS_PHOTOFAKE_GUARD: hard off-switch
+        if (!VideoManager.getConfig().getBoolean(ConfigManager.KEY_ENABLE_PHOTO_FAKE, false)) {
+            return false; // photo fake disabled -> real JPEG passes through
+        }
         // ===== JPEG REPLACEMENT DISABLED =====
         // Captured JPEG now passes through untouched (real scene).
         return false;
