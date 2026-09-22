@@ -2864,43 +2864,10 @@
         }
 
         public boolean replaceJpegImageIfNeeded(Object imageReader, Image image) {
-            if (imageReader == null || image == null) {
-                return false;
-            }
-            try {
-                Surface surface = ((ImageReader) imageReader).getSurface();
-                if (image.getPlanes() == null || image.getPlanes().length == 0) {
-                    LogUtil.log("【CS】JPEG Image 无可写 Plane，放弃替换");
-                    return false;
-                }
-                ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                if (buffer == null || buffer.isReadOnly()) {
-                    LogUtil.log("【CS】JPEG Plane Buffer 不可用或只读，放弃替换");
-                    return false;
-                }
-
-                byte[] jpegBytes = createFakeJpegBytes(surface, buffer.capacity());
-                if (jpegBytes == null || jpegBytes.length == 0) {
-                    return false;
-                }
-
-                buffer.clear();
-                buffer.put(jpegBytes);
-                buffer.position(0);
-                buffer.limit(jpegBytes.length);
-                try {
-                    image.setCropRect(new android.graphics.Rect(0, 0, image.getWidth(), image.getHeight()));
-                } catch (Throwable ignored) {
-                }
-                pendingJpegSurfaces.remove(surface);
-                pendingPhotoSurface = null;
-                LogUtil.log("【CS】成功替换 JPEG 拍照照片为当前虚拟画面: 大小=" + jpegBytes.length + " 字节");
-                return true;
-            } catch (Exception e) {
-                LogUtil.log("【CS】替换 JPEG Image 失败: " + e);
-                return false;
-            }
-        }
+        // ===== JPEG REPLACEMENT DISABLED =====
+        // Captured JPEG now passes through untouched (real scene).
+        return false;
+    }
 
         private volatile boolean isYuvPumperRunning = false;
         private final Runnable yuvContinuousPumpRunnable = new Runnable() {
