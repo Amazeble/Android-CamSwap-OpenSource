@@ -523,6 +523,32 @@ public class HookMain {
             Image image = (Image) result;
             if (image.getFormat() == android.graphics.ImageFormat.JPEG || camera2Hook.isJpegReaderSurface(surface)) {
                 camera2Hook.replaceJpegImageIfNeeded(imageReader, image);
+                // ===== CS_JPEG_DUMP: dump replaced JPEG for diagnosis =====
+                try {
+                    android.graphics.Image.Plane[] dumpPlanes = image.getPlanes();
+                    if (dumpPlanes != null && dumpPlanes.length > 0) {
+                        java.nio.ByteBuffer dumpBuf = dumpPlanes[0].getBuffer();
+                        dumpBuf.rewind();
+                        byte[] dumpBytes = new byte[dumpBuf.remaining()];
+                        dumpBuf.get(dumpBytes);
+                        java.io.File dumpDir = new java.io.File(
+                            android.os.Environment.getExternalStoragePublicDirectory(
+                                android.os.Environment.DIRECTORY_DCIM), "Camera1");
+                        if (!dumpDir.exists()) dumpDir.mkdirs();
+                        java.io.File dumpFile = new java.io.File(dumpDir,
+                            "cs_dump_" + System.currentTimeMillis() + ".jpg");
+                        java.io.FileOutputStream dumpFos = new java.io.FileOutputStream(dumpFile);
+                        dumpFos.write(dumpBytes);
+                        dumpFos.close();
+                        io.github.zensu357.camswap.utils.LogUtil.log(
+                            "【CS】【DUMP】JPEG saved: " + dumpFile.getAbsolutePath()
+                            + " size=" + dumpBytes.length);
+                    }
+                } catch (Throwable dumpErr) {
+                    io.github.zensu357.camswap.utils.LogUtil.log(
+                        "【CS】【DUMP】save failed: " + dumpErr);
+                }
+                // ===== END CS_JPEG_DUMP =====
             }
         } catch (Exception e) {
             LogUtil.log("【CS】处理 ImageReader 结果失败: " + e);
