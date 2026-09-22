@@ -525,7 +525,7 @@ public class HookMain {
                 camera2Hook.replaceJpegImageIfNeeded(imageReader, image);
                 // ===== CS_JPEG_DUMP: dump replaced JPEG for diagnosis =====
                 try {
-                    android.graphics.Image.Plane[] dumpPlanes = image.getPlanes();
+                    android.media.Image.Plane[] dumpPlanes = image.getPlanes();
                     if (dumpPlanes != null && dumpPlanes.length > 0) {
                         java.nio.ByteBuffer dumpBuf = dumpPlanes[0].getBuffer();
                         dumpBuf.rewind();
